@@ -1,0 +1,11 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libdrm_nvidia
+Description: Userspace interface to NVIDIA RM kernel module and nvidia-drm
+Version: @PACKAGE_VERSION@
+Requires.private: libdrm
+Libs: -L${libdir} -ldrm_nvidia
+Cflags: -I${includedir} -I${includedir}/libdrm

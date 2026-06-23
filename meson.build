@@ -116,6 +116,11 @@ with_amdgpu = get_option('amdgpu') \
   .allowed()
 summary('AMDGPU', with_amdgpu)
 
+with_nvidia = get_option('nvidia') \
+  .require(with_atomics, error_message : 'libdrm_nvidia requires atomics') \
+  .allowed()
+summary('NVIDIA', with_nvidia)
+
 with_nouveau = get_option('nouveau') \
   .require(with_atomics, error_message : 'libdrm_nouveau requires atomics') \
   .allowed()
@@ -334,6 +339,9 @@ if with_radeon
 endif
 if with_amdgpu
   subdir('amdgpu')
+endif
+if with_nvidia
+  subdir('nvidia')
 endif
 if with_omap
   subdir('omap')

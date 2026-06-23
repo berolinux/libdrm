@@ -34,6 +34,11 @@ option(
   description : '''Enable support for amdgpu's KMS API.''',
 )
 option(
+  'nvidia',
+  type : 'feature',
+  description : '''Enable support for NVIDIA RM / nvidia-drm.''',
+)
+option(
   'nouveau',
   type : 'feature',
   description : '''Enable support for nouveau's KMS API.''',

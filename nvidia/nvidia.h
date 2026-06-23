@@ -1,0 +1,295 @@
+/*
+ * Copyright 2026 - Open NVIDIA userspace driver project
+ * SPDX-License-Identifier: MIT
+ *
+ * Public API for libdrm_nvidia - userspace interface to the NVIDIA RM kernel
+ * module (/dev/nvidiactl, /dev/nvidiaN) and nvidia-drm KMS nodes.
+ *
+ * Structure mirrors libdrm_amdgpu: device / buffer-object / RM control.
+ * Implementation details derived from open-gpu-kernel-modules ioctl ABI.
+ */
+
+#ifndef _NVIDIA_DRM_USER_H_
+#define _NVIDIA_DRM_USER_H_
+
+#include <stdint.h>
+#include <stdbool.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct nvidia_device;
+struct nvidia_bo;
+
+typedef struct nvidia_device *nvidia_device_handle;
+typedef struct nvidia_bo *nvidia_bo_handle;
+
+/* Special timeout: infinite wait */
+#define NVIDIA_TIMEOUT_INFINITE 0xffffffffffffffffull
+
+/* PCI vendor ID for NVIDIA */
+#define NVIDIA_PCI_VENDOR_ID 0x10de
+
+/* Maximum GPUs we track per control fd (matches kernel NV_MAX_DEVICES) */
+#define NVIDIA_MAX_GPUS 32
+
+/* BO domains / heaps */
+enum nvidia_bo_domain {
+	NVIDIA_BO_DOMAIN_CPU = 0,      /* system memory, host-visible */
+	NVIDIA_BO_DOMAIN_VRAM = 1,     /* local video memory (FB) */
+	NVIDIA_BO_DOMAIN_GART = 2,     /* system memory GPU-accessible (GART/IOMMU) */
+};
+
+/* BO allocation flags */
+enum nvidia_bo_flags {
+	NVIDIA_BO_FLAGS_CPU_ACCESS     = (1 << 0),
+	NVIDIA_BO_FLAGS_NO_CPU_ACCESS  = (1 << 1),
+	NVIDIA_BO_FLAGS_NO_SCANOUT     = (1 << 2),
+	NVIDIA_BO_FLAGS_CONTIGUOUS     = (1 << 3),
+	NVIDIA_BO_FLAGS_PINNED         = (1 << 4),
+};
+
+/* Handle export/import types */
+enum nvidia_bo_handle_type {
+	NVIDIA_BO_HANDLE_TYPE_GEM_FLINK = 0,
+	NVIDIA_BO_HANDLE_TYPE_KMS = 1,
+	NVIDIA_BO_HANDLE_TYPE_DMA_BUF_FD = 2,
+	NVIDIA_BO_HANDLE_TYPE_RM_HANDLE = 3,
+};
+
+/* GPU architecture families (from NV2080_CTRL_MC_GET_ARCH_INFO architecture field) */
+enum nvidia_gpu_arch {
+	NVIDIA_GPU_ARCH_UNKNOWN = 0,
+	NVIDIA_GPU_ARCH_KEPLER  = 0xe0,
+	NVIDIA_GPU_ARCH_MAXWELL = 0x110,
+	NVIDIA_GPU_ARCH_PASCAL  = 0x130,
+	NVIDIA_GPU_ARCH_VOLTA   = 0x140,
+	NVIDIA_GPU_ARCH_TURING  = 0x160,
+	NVIDIA_GPU_ARCH_AMPERE  = 0x170,
+	NVIDIA_GPU_ARCH_ADA     = 0x190,
+	NVIDIA_GPU_ARCH_HOPPER  = 0x180,
+	NVIDIA_GPU_ARCH_BLACKWELL = 0x1a0,
+};
+
+/**
+ * Per-GPU information returned by nvidia_query_gpu_info().
+ */
+struct nvidia_gpu_info {
+	uint32_t gpu_id;              /* RM gpuId */
+	uint32_t device_instance;     /* NV0080 device instance */
+	uint32_t subdevice_instance;
+	uint32_t pci_domain;
+	uint32_t pci_bus;
+	uint32_t pci_device;
+	uint32_t pci_function;
+	uint16_t pci_vendor_id;
+	uint16_t pci_device_id;
+	uint32_t architecture;        /* NV2080 MC arch */
+	uint32_t implementation;
+	uint32_t revision;
+	uint64_t fb_size;             /* total framebuffer bytes */
+	uint64_t fb_usable;           /* usable RAM size */
+	uint64_t fb_free;             /* current free (may be 0 if not queried) */
+	uint64_t reg_address;
+	uint64_t reg_size;
+	uint64_t fb_bar_address;
+	uint64_t fb_bar_size;
+	uint32_t sm_version;
+	uint32_t gpc_count;
+	uint32_t tpc_count;
+	char     name[64];
+	char     short_name[16];
+	bool     valid;
+};
+
+/**
+ * Device open / close.
+ *
+ * Opens /dev/nvidiactl (control) plus optionally /dev/nvidiaN for a specific
+ * GPU. fd_drm may be an nvidia-drm render/primary node for KMS/GEM interop;
+ * pass -1 if not using DRM.
+ */
+int nvidia_device_initialize(int fd_drm, uint32_t *major_version,
+			     uint32_t *minor_version,
+			     nvidia_device_handle *device_out);
+
+/**
+ * Open control + specific GPU by index (0..N-1 as enumerated by CARD_INFO).
+ * fd_drm may be -1.
+ */
+int nvidia_device_initialize_gpu(int fd_drm, int gpu_index,
+				 uint32_t *major_version, uint32_t *minor_version,
+				 nvidia_device_handle *device_out);
+
+int nvidia_device_deinitialize(nvidia_device_handle device);
+
+/** Get the control fd (/dev/nvidiactl) */
+int nvidia_device_get_fd(nvidia_device_handle device);
+
+/** Get the per-GPU fd (/dev/nvidiaN), or -1 if not opened */
+int nvidia_device_get_gpu_fd(nvidia_device_handle device);
+
+/** Get the DRM fd passed at init, or -1 */
+int nvidia_device_get_drm_fd(nvidia_device_handle device);
+
+/** RM client handle (hClient / hRoot) */
+uint32_t nvidia_device_get_client_handle(nvidia_device_handle device);
+
+/** RM device object handle (NV01_DEVICE_0) */
+uint32_t nvidia_device_get_device_handle(nvidia_device_handle device);
+
+/** RM subdevice object handle (NV20_SUBDEVICE_0) */
+uint32_t nvidia_device_get_subdevice_handle(nvidia_device_handle device);
+
+/** Number of GPUs found via NV_ESC_CARD_INFO */
+int nvidia_device_get_gpu_count(nvidia_device_handle device);
+
+/** Query info for GPU index (0 .. gpu_count-1) */
+int nvidia_query_gpu_info(nvidia_device_handle device, int gpu_index,
+			  struct nvidia_gpu_info *info);
+
+/** Query info for the GPU selected at initialize_gpu time */
+int nvidia_query_selected_gpu_info(nvidia_device_handle device,
+				   struct nvidia_gpu_info *info);
+
+/** Kernel module API version string (NV_ESC_CHECK_VERSION_STR) */
+int nvidia_query_rm_api_version(nvidia_device_handle device,
+				char *version_out, int version_len);
+
+/* --- RM object management --- */
+
+/**
+ * Allocate a generic RM object (NV_ESC_RM_ALLOC / NVOS64 or NVOS21).
+ * h_class is an NV class id (e.g. NV01_DEVICE_0). alloc_params may be NULL.
+ * On success, *h_object_new receives the assigned handle (or pass a requested
+ * non-zero handle).
+ */
+int nvidia_rm_alloc(nvidia_device_handle device,
+		    uint32_t h_parent,
+		    uint32_t *h_object_new,
+		    uint32_t h_class,
+		    void *alloc_params,
+		    uint32_t alloc_params_size);
+
+/** Free an RM object (NV_ESC_RM_FREE / NVOS00) */
+int nvidia_rm_free(nvidia_device_handle device,
+		   uint32_t h_parent,
+		   uint32_t h_object);
+
+/**
+ * RmControl (NV_ESC_RM_CONTROL / NVOS54).
+ * params is an in/out buffer of params_size bytes for the given cmd.
+ */
+int nvidia_rm_control(nvidia_device_handle device,
+		      uint32_t h_object,
+		      uint32_t cmd,
+		      void *params,
+		      uint32_t params_size);
+
+/** Map RM memory object into CPU address space (NV_ESC_RM_MAP_MEMORY) */
+int nvidia_rm_map_memory(nvidia_device_handle device,
+			 uint32_t h_device,
+			 uint32_t h_memory,
+			 uint64_t offset,
+			 uint64_t length,
+			 void **cpu_ptr_out,
+			 uint32_t flags);
+
+/** Unmap previously mapped memory (NV_ESC_RM_UNMAP_MEMORY) */
+int nvidia_rm_unmap_memory(nvidia_device_handle device,
+			   uint32_t h_device,
+			   uint32_t h_memory,
+			   void *cpu_ptr,
+			   uint32_t flags);
+
+/** Vid heap alloc-by-size (NV_ESC_RM_VID_HEAP_CONTROL / NVOS32 alloc size) */
+int nvidia_rm_vidheap_alloc(nvidia_device_handle device,
+			    uint32_t h_parent,
+			    uint32_t type,
+			    uint32_t flags,
+			    uint64_t size,
+			    uint64_t align,
+			    uint32_t attr,
+			    uint32_t attr2,
+			    uint32_t *h_memory_out,
+			    uint64_t *offset_out,
+			    uint64_t *limit_out);
+
+/** Vid heap free */
+int nvidia_rm_vidheap_free(nvidia_device_handle device,
+			   uint32_t h_parent,
+			   uint32_t h_memory);
+
+/** Export RM memory objects to a dma-buf fd (NV_ESC_EXPORT_TO_DMABUF_FD) */
+int nvidia_rm_export_dmabuf(nvidia_device_handle device,
+			    uint32_t *handles,
+			    uint64_t *offsets,
+			    uint64_t *sizes,
+			    uint32_t num_objects,
+			    uint64_t total_size,
+			    int *dmabuf_fd_out);
+
+/* --- Buffer objects (higher-level convenience over RM memory) --- */
+
+struct nvidia_bo_alloc_request {
+	uint64_t size;
+	uint64_t alignment;           /* 0 = default page alignment */
+	enum nvidia_bo_domain domain;
+	uint32_t flags;               /* nvidia_bo_flags */
+	uint32_t rm_type;             /* NVOS32_TYPE_*, 0 = DMA default */
+};
+
+struct nvidia_bo_metadata {
+	uint64_t size;
+	uint64_t aligned_size;
+	uint64_t gpu_offset;          /* RM offset / GPU VA if known */
+	uint32_t rm_handle;
+	enum nvidia_bo_domain domain;
+	uint32_t flags;
+	bool cpu_accessible;
+};
+
+int nvidia_bo_alloc(nvidia_device_handle device,
+		    struct nvidia_bo_alloc_request *req,
+		    nvidia_bo_handle *bo_out);
+
+int nvidia_bo_free(nvidia_bo_handle bo);
+
+int nvidia_bo_query_metadata(nvidia_bo_handle bo,
+			     struct nvidia_bo_metadata *meta);
+
+/** CPU map; returns pointer in *cpu_ptr. Only valid if CPU_ACCESS was requested. */
+int nvidia_bo_cpu_map(nvidia_bo_handle bo, void **cpu_ptr);
+
+int nvidia_bo_cpu_unmap(nvidia_bo_handle bo);
+
+/** Export BO as dma-buf fd (caller owns fd) */
+int nvidia_bo_export_dmabuf(nvidia_bo_handle bo, int *dmabuf_fd_out);
+
+/** Get underlying RM memory handle */
+uint32_t nvidia_bo_get_rm_handle(nvidia_bo_handle bo);
+
+/** Reference counting */
+int nvidia_bo_ref(nvidia_bo_handle bo);
+int nvidia_bo_unref(nvidia_bo_handle bo);
+
+/* --- Utility --- */
+
+/** Translate RM NV_STATUS code to a short string (static storage) */
+const char *nvidia_rm_status_string(uint32_t status);
+
+/** Translate GPU architecture id to a human-readable family name */
+const char *nvidia_gpu_arch_name(uint32_t architecture);
+
+/** Check whether an fd looks like an nvidia-drm node */
+bool nvidia_drm_check_fd(int fd);
+
+/** Probe /dev/nvidiactl availability without fully initializing */
+bool nvidia_probe_available(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _NVIDIA_DRM_USER_H_ */
