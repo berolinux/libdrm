@@ -32,3 +32,10 @@ nvidia_rm_status_string
 nvidia_gpu_arch_name
 nvidia_drm_check_fd
 nvidia_probe_available
+nvidia_rm_memory_alloc
+nvidia_rm_alloc_os_event
+nvidia_rm_free_os_event
+nvidia_rm_wait_open_complete
+nvidia_rm_gpfifo_schedule
+nvidia_rm_gpfifo_get_work_submit_token
+nvidia_gp_entry_pack

@@ -100,18 +100,26 @@ nvidia_device_rm_setup_client(struct nvidia_device *dev)
 	 * Allocate root client: parent = NV01_NULL_OBJECT, class = NV01_ROOT_USER.
 	 * This is the first call every NVIDIA userspace driver makes.
 	 */
+	/* Prefer NV01_ROOT_CLIENT (0x41); fall back to NV01_ROOT_USER alias then NV01_ROOT */
 	h_client = nvidia_device_new_handle(dev);
 	ret = nvidia_rm_alloc_raw(dev->fd_ctl, 0 /* hRoot unused for first alloc */,
-				  NV01_NULL_OBJECT, &h_client, NV01_ROOT_USER,
+				  NV01_NULL_OBJECT, &h_client, NV01_ROOT_CLIENT,
 				  NULL, 0);
 	if (ret != 0) {
-		/* Try NV01_ROOT as fallback class */
+		h_client = nvidia_device_new_handle(dev);
+		ret = nvidia_rm_alloc_raw(dev->fd_ctl, 0, NV01_NULL_OBJECT,
+					  &h_client, NV01_ROOT_USER, NULL, 0);
+	}
+	if (ret != 0) {
 		h_client = nvidia_device_new_handle(dev);
 		ret = nvidia_rm_alloc_raw(dev->fd_ctl, 0, NV01_NULL_OBJECT,
 					  &h_client, NV01_ROOT, NULL, 0);
 		if (ret != 0)
 			return ret;
 	}
+
+	/* Some modules need WAIT_OPEN_COMPLETE after first client alloc */
+	nvidia_rm_wait_open_complete_raw(dev->fd_ctl, NULL, NULL);
 
 	dev->h_client = h_client;
 	dev->rm_client_allocated = true;
@@ -743,4 +751,87 @@ nvidia_rm_export_dmabuf(nvidia_device_handle device,
 	return nvidia_rm_export_dmabuf_raw(device->fd_ctl, device->h_client,
 					   handles, offsets, sizes, num_objects,
 					   total_size, dmabuf_fd_out);
+}
+
+int
+nvidia_rm_memory_alloc(nvidia_device_handle device,
+		       uint32_t h_parent,
+		       uint32_t *h_memory_out,
+		       uint32_t h_class,
+		       uint32_t type,
+		       uint32_t flags,
+		       uint32_t attr,
+		       uint32_t attr2,
+		       uint64_t size,
+		       uint64_t alignment,
+		       uint64_t *offset_out,
+		       uint64_t *limit_out)
+{
+	NvHandle h_mem;
+	int ret;
+
+	if (!device || !h_memory_out)
+		return -EINVAL;
+	h_mem = nvidia_device_new_handle(device);
+	ret = nvidia_rm_memory_alloc_raw(device->fd_ctl, device->h_client,
+					 h_parent ? h_parent : device->h_device,
+					 &h_mem, h_class, device->h_client,
+					 type, flags, attr, attr2, size, alignment,
+					 offset_out, limit_out);
+	if (ret == 0)
+		*h_memory_out = h_mem;
+	return ret;
+}
+
+int
+nvidia_rm_alloc_os_event(nvidia_device_handle device, uint32_t h_device,
+			 int event_fd)
+{
+	if (!device)
+		return -EINVAL;
+	return nvidia_rm_alloc_os_event_raw(device->fd_ctl, device->h_client,
+					    h_device ? h_device : device->h_device,
+					    event_fd, NULL);
+}
+
+int
+nvidia_rm_free_os_event(nvidia_device_handle device, uint32_t h_device,
+			int event_fd)
+{
+	if (!device)
+		return -EINVAL;
+	return nvidia_rm_free_os_event_raw(device->fd_ctl, device->h_client,
+					   h_device ? h_device : device->h_device,
+					   event_fd);
+}
+
+int
+nvidia_rm_wait_open_complete(nvidia_device_handle device,
+			     int32_t *rc_out, uint32_t *adapter_status_out)
+{
+	if (!device)
+		return -EINVAL;
+	return nvidia_rm_wait_open_complete_raw(device->fd_ctl, rc_out,
+						adapter_status_out);
+}
+
+int
+nvidia_rm_gpfifo_schedule(nvidia_device_handle device, uint32_t h_channel,
+			  bool enable)
+{
+	if (!device || !h_channel)
+		return -EINVAL;
+	return nvidia_rm_gpfifo_schedule_raw(device->fd_ctl, device->h_client,
+					     h_channel, enable ? NV_TRUE : NV_FALSE);
+}
+
+int
+nvidia_rm_gpfifo_get_work_submit_token(nvidia_device_handle device,
+				       uint32_t h_channel, uint32_t *token_out)
+{
+	if (!device || !h_channel)
+		return -EINVAL;
+	return nvidia_rm_gpfifo_get_work_submit_token_raw(device->fd_ctl,
+							  device->h_client,
+							  h_channel, token_out);
 }

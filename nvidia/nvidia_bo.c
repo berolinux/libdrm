@@ -72,29 +72,38 @@ nvidia_bo_alloc(nvidia_device_handle device,
 	switch (req->domain) {
 	case NVIDIA_BO_DOMAIN_VRAM:
 		/*
-		 * Local video memory: vidheap alloc under the device.
-		 * Default type DMA; caller may request IMAGE/TEXTURE/etc.
+		 * Local video memory: prefer RmAlloc(NV01_MEMORY_LOCAL_USER) with
+		 * NV_MEMORY_ALLOCATION_PARAMS (nvidia-push / nvkms path).  Fall
+		 * back to NVOS32 vidheap, then bare class alloc.
 		 */
 		bo->rm_handle = nvidia_device_new_handle(device);
-		ret = nvidia_rm_vidheap_alloc_raw(device->fd_ctl, device->h_client,
-						  h_parent, bo->rm_type, flags,
-						  size, align, 0, 0,
-						  &bo->rm_handle, &bo->gpu_offset,
-						  &bo->limit);
+		flags = NVOS32_ALLOC_FLAGS_ALIGNMENT_FORCE |
+			NVOS32_ALLOC_FLAGS_MAP_NOT_REQUIRED |
+			NVOS32_ALLOC_FLAGS_PERSISTENT_VIDMEM;
+		if (req->flags & NVIDIA_BO_FLAGS_NO_SCANOUT)
+			flags |= NVOS32_ALLOC_FLAGS_NO_SCANOUT;
+		ret = nvidia_rm_memory_alloc_raw(device->fd_ctl, device->h_client,
+						 h_parent, &bo->rm_handle,
+						 NV01_MEMORY_LOCAL_USER,
+						 device->h_client, bo->rm_type,
+						 flags,
+						 NV_OS32_ATTR_VIDMEM_4K_UNCACHED,
+						 NV_OS32_ATTR2_GPU_CACHEABLE_NO_VAL,
+						 size, align,
+						 &bo->gpu_offset, &bo->limit);
 		if (ret != 0) {
-			/* Fallback: try NV01_MEMORY_LOCAL_USER class alloc */
-			NvHandle h = nvidia_device_new_handle(device);
-			/* Minimal alloc params: many classes accept NULL params */
-			ret = nvidia_rm_alloc_raw(device->fd_ctl, device->h_client,
-						  h_parent, &h,
-						  NV01_MEMORY_LOCAL_USER,
-						  NULL, 0);
-			if (ret != 0) {
-				free(bo);
-				return ret;
-			}
-			bo->rm_handle = h;
-			bo->limit = size - 1;
+			ret = nvidia_rm_vidheap_alloc_raw(device->fd_ctl,
+							  device->h_client,
+							  h_parent, bo->rm_type,
+							  flags, size, align,
+							  NV_OS32_ATTR_VIDMEM_4K_UNCACHED,
+							  0, &bo->rm_handle,
+							  &bo->gpu_offset,
+							  &bo->limit);
+		}
+		if (ret != 0) {
+			free(bo);
+			return ret;
 		}
 		bo->allocated = true;
 		bo->cpu_accessible = (req->flags & NVIDIA_BO_FLAGS_CPU_ACCESS) != 0 &&
@@ -105,29 +114,40 @@ nvidia_bo_alloc(nvidia_device_handle device,
 	case NVIDIA_BO_DOMAIN_CPU:
 	default:
 		/*
-		 * System memory accessible to GPU.  Prefer NV01_MEMORY_SYSTEM
-		 * class; fall back to vidheap with system-ish type.
+		 * System memory: RmAlloc(NV01_MEMORY_SYSTEM) with
+		 * NV_MEMORY_ALLOCATION_PARAMS (PCI / write-combine for CPU maps).
 		 */
 		bo->rm_handle = nvidia_device_new_handle(device);
-		ret = nvidia_rm_alloc_raw(device->fd_ctl, device->h_client,
-					  h_parent, &bo->rm_handle,
-					  NV01_MEMORY_SYSTEM, NULL, 0);
+		flags = NVOS32_ALLOC_FLAGS_ALIGNMENT_FORCE |
+			NVOS32_ALLOC_FLAGS_MAP_NOT_REQUIRED |
+			NVOS32_ALLOC_FLAGS_NO_SCANOUT;
+		{
+			NvU32 attr = (req->flags & NVIDIA_BO_FLAGS_CPU_ACCESS) ?
+				NV_OS32_ATTR_PCI_4K_WRITECOMBINE :
+				NV_OS32_ATTR_PCI_4K_UNCACHED;
+			ret = nvidia_rm_memory_alloc_raw(device->fd_ctl,
+							 device->h_client,
+							 h_parent, &bo->rm_handle,
+							 NV01_MEMORY_SYSTEM,
+							 device->h_client,
+							 bo->rm_type, flags,
+							 attr, 0, size, align,
+							 &bo->gpu_offset,
+							 &bo->limit);
+		}
 		if (ret != 0) {
-			/* vidheap path as fallback */
 			ret = nvidia_rm_vidheap_alloc_raw(device->fd_ctl,
 							  device->h_client,
 							  h_parent, bo->rm_type,
-							  flags | NVOS32_ALLOC_FLAGS_NO_SCANOUT,
-							  size, align, 0, 0,
-							  &bo->rm_handle,
+							  flags, size, align,
+							  NV_OS32_ATTR_PCI_4K_UNCACHED,
+							  0, &bo->rm_handle,
 							  &bo->gpu_offset,
 							  &bo->limit);
-			if (ret != 0) {
-				free(bo);
-				return ret;
-			}
-		} else {
-			bo->limit = size - 1;
+		}
+		if (ret != 0) {
+			free(bo);
+			return ret;
 		}
 		bo->allocated = true;
 		bo->cpu_accessible = (req->flags & NVIDIA_BO_FLAGS_NO_CPU_ACCESS) == 0;

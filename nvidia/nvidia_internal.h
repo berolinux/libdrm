@@ -103,6 +103,25 @@ int nvidia_rm_vidheap_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
 				NvHandle *h_memory, NvU64 *offset, NvU64 *limit);
 int nvidia_rm_vidheap_free_raw(int fd, NvHandle h_root, NvHandle h_parent,
 			       NvHandle h_memory);
+int nvidia_rm_memory_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
+			       NvHandle *h_memory, NvV32 h_class,
+			       NvU32 owner, NvU32 type, NvU32 flags,
+			       NvU32 attr, NvU32 attr2,
+			       NvU64 size, NvU64 alignment,
+			       NvU64 *offset_out, NvU64 *limit_out);
+int nvidia_rm_alloc_os_event_raw(int fd_ctl, NvHandle h_client, NvHandle h_device,
+				 int event_fd, NvU32 *status_out);
+int nvidia_rm_free_os_event_raw(int fd_ctl, NvHandle h_client, NvHandle h_device,
+				int event_fd);
+int nvidia_rm_wait_open_complete_raw(int fd_ctl, NvS32 *rc_out,
+				     NvU32 *adapter_status_out);
+int nvidia_rm_gpfifo_schedule_raw(int fd, NvHandle h_client, NvHandle h_channel,
+				  NvBool enable);
+int nvidia_rm_gpfifo_get_work_submit_token_raw(int fd, NvHandle h_client,
+					       NvHandle h_channel,
+					       NvU32 *token_out);
+void nvidia_gp_entry_pack(NvU32 entry[2], NvU64 gpu_addr, NvU32 length_dwords,
+			  bool wait, bool priv);
 int nvidia_rm_export_dmabuf_raw(int fd, NvHandle h_client,
 				NvHandle *handles, NvU64 *offsets, NvU64 *sizes,
 				NvU32 num_objects, NvU64 total_size,

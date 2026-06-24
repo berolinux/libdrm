@@ -80,7 +80,8 @@ typedef NvU8     NvBool;
 /* --- Well-known RM class handles (class/cl0000.h etc.) --- */
 #define NV01_NULL_OBJECT        0x00000000
 #define NV01_ROOT               0x00000000
-#define NV01_ROOT_USER          0x00000041
+#define NV01_ROOT_USER          0x00000041  /* alias for NV01_ROOT_CLIENT */
+#define NV01_ROOT_CLIENT        0x00000041
 #define NV01_DEVICE_0           0x00000080
 #define NV20_SUBDEVICE_0        0x00002080
 #define NV01_MEMORY_SYSTEM      0x0000003e
@@ -151,14 +152,30 @@ typedef NvU8     NvBool;
 #define NVOS32_TYPE_HEAP_RESERVED                   15
 #define NVOS32_TYPE_STENCIL                         16
 
+/* NVOS32_ALLOC_FLAGS_* - exact values from open-gpu-kernel-modules nvos.h */
 #define NVOS32_ALLOC_FLAGS_IGNORE_BANK_PLACEMENT    0x00000001
 #define NVOS32_ALLOC_FLAGS_FORCE_MEM_GROWS_UP       0x00000002
 #define NVOS32_ALLOC_FLAGS_FORCE_MEM_GROWS_DOWN     0x00000004
-#define NVOS32_ALLOC_FLAGS_NO_SCANOUT               0x00000020
-#define NVOS32_ALLOC_FLAGS_MAP_NOT_REQUIRED         0x00000040
-#define NVOS32_ALLOC_FLAGS_MEMORY_HANDLE_PROVIDED   0x00000200
-#define NVOS32_ALLOC_FLAGS_ALIGNMENT_FORCE          0x00008000
-#define NVOS32_ALLOC_FLAGS_FORCE_ALIGN_HOST_PAGE    0x00010000
+#define NVOS32_ALLOC_FLAGS_FORCE_ALIGN_HOST_PAGE    0x00000008
+#define NVOS32_ALLOC_FLAGS_FIXED_ADDRESS_ALLOCATE   0x00000010
+#define NVOS32_ALLOC_FLAGS_BANK_HINT                0x00000020
+#define NVOS32_ALLOC_FLAGS_BANK_FORCE               0x00000040
+#define NVOS32_ALLOC_FLAGS_ALIGNMENT_HINT           0x00000080
+#define NVOS32_ALLOC_FLAGS_ALIGNMENT_FORCE          0x00000100
+#define NVOS32_ALLOC_FLAGS_BANK_GROW_DOWN           0x00000200
+#define NVOS32_ALLOC_FLAGS_LAZY                     0x00000400
+#define NVOS32_ALLOC_FLAGS_NO_SCANOUT               0x00001000
+#define NVOS32_ALLOC_FLAGS_PITCH_FORCE              0x00002000
+#define NVOS32_ALLOC_FLAGS_MEMORY_HANDLE_PROVIDED   0x00004000
+#define NVOS32_ALLOC_FLAGS_MAP_NOT_REQUIRED         0x00008000
+#define NVOS32_ALLOC_FLAGS_PERSISTENT_VIDMEM        0x00010000
+#define NVOS32_ALLOC_FLAGS_USE_BEGIN_END            0x00020000
+#define NVOS32_ALLOC_FLAGS_TURBO_CIPHER_ENCRYPTED   0x00040000
+#define NVOS32_ALLOC_FLAGS_VIRTUAL                  0x00080000
+#define NVOS32_ALLOC_FLAGS_KERNEL_MAPPING_MAP       0x02000000
+#define NVOS32_ALLOC_FLAGS_SPARSE                   0x04000000
+#define NVOS32_ALLOC_FLAGS_USER_READ_ONLY           0x04000000
+#define NVOS32_ALLOC_FLAGS_DEVICE_READ_ONLY         0x08000000
 
 /* RM status codes (subset of nvstatus.h) */
 #define NV_OK                                       0x00000000
@@ -303,13 +320,14 @@ typedef struct {
 	NvV32    status;
 } NVOS05_PARAMETERS;
 
-/* NVOS21 / NVOS64: alloc (generic object) */
+/* NVOS21 / NVOS64: alloc (generic object) - from nvos.h */
 typedef struct {
 	NvHandle hRoot;
 	NvHandle hObjectParent;
 	NvHandle hObjectNew;
 	NvV32    hClass;
 	NvU64    pAllocParms NV_ALIGN_BYTES(8);
+	NvU32    paramsSize;
 	NvV32    status;
 } NVOS21_PARAMETERS;
 
@@ -320,6 +338,7 @@ typedef struct {
 	NvV32    hClass;
 	NvU64    pAllocParms NV_ALIGN_BYTES(8);
 	NvU64    pRightsRequested NV_ALIGN_BYTES(8);
+	NvU32    paramsSize;
 	NvU32    flags;
 	NvV32    status;
 } NVOS64_PARAMETERS;
@@ -373,40 +392,309 @@ typedef struct {
 	NvU32    status;
 } NVOS55_PARAMETERS;
 
-/* NVOS32: vid heap control (simplified outer header; body is union by function) */
+/* NVOS32: vid heap control - outer header + data union from nvos.h */
+#define NVOS32_FREE_FLAGS_MEMORY_HANDLE_PROVIDED    0x00000001
+#define NVOS32_FUNCTION_ALLOC_SIZE_RANGE            14
+
+/* NVOS32_ATTR bitfields (subset used by userspace alloc) */
+#define NVOS32_ATTR_LOCATION                        1:0
+#define NVOS32_ATTR_LOCATION_VIDMEM                 0x00000000
+#define NVOS32_ATTR_LOCATION_PCI                    0x00000001
+#define NVOS32_ATTR_LOCATION_ANY                    0x00000003
+#define NVOS32_ATTR_PAGE_SIZE                       5:3
+#define NVOS32_ATTR_PAGE_SIZE_DEFAULT               0x00000000
+#define NVOS32_ATTR_PAGE_SIZE_4KB                   0x00000001
+#define NVOS32_ATTR_PAGE_SIZE_BIG                   0x00000002
+#define NVOS32_ATTR_PAGE_SIZE_HUGE                  0x00000003
+#define NVOS32_ATTR_COHERENCY                       9:7
+#define NVOS32_ATTR_COHERENCY_UNCACHED              0x00000000
+#define NVOS32_ATTR_COHERENCY_CACHED                0x00000001
+#define NVOS32_ATTR_COHERENCY_WRITE_COMBINE         0x00000002
+#define NVOS32_ATTR_PHYSICALITY                     13:12
+#define NVOS32_ATTR_PHYSICALITY_DEFAULT             0x00000000
+#define NVOS32_ATTR_PHYSICALITY_NONCONTIGUOUS       0x00000001
+#define NVOS32_ATTR_PHYSICALITY_CONTIGUOUS          0x00000002
+#define NVOS32_ATTR_FORMAT                          17:14
+#define NVOS32_ATTR_FORMAT_PITCH                    0x00000000
+#define NVOS32_ATTR_FORMAT_BLOCK_LINEAR             0x00000001
+#define NVOS32_ATTR_DEPTH                           21:18
+#define NVOS32_ATTR_DEPTH_UNKNOWN                   0x00000000
+#define NVOS32_ATTR_DEPTH_8                         0x00000001
+#define NVOS32_ATTR_DEPTH_16                        0x00000002
+#define NVOS32_ATTR_DEPTH_24                        0x00000003
+#define NVOS32_ATTR_DEPTH_32                        0x00000004
+#define NVOS32_ATTR_DEPTH_64                        0x00000005
+#define NVOS32_ATTR_DEPTH_128                       0x00000006
+#define NVOS32_ATTR_COMPR                           25:23
+#define NVOS32_ATTR_COMPR_NONE                      0x00000000
+#define NVOS32_ATTR_ZCULL                           29:28
+#define NVOS32_ATTR_ZCULL_NONE                      0x00000000
+
+#define NVOS32_ATTR2_GPU_CACHEABLE                  1:0
+#define NVOS32_ATTR2_GPU_CACHEABLE_DEFAULT          0x00000000
+#define NVOS32_ATTR2_GPU_CACHEABLE_YES              0x00000001
+#define NVOS32_ATTR2_GPU_CACHEABLE_NO               0x00000002
+#define NVOS32_ATTR2_ZBC                            3:2
+#define NVOS32_ATTR2_ZBC_DEFAULT                    0x00000000
+#define NVOS32_ATTR2_ZBC_PREFER_NO_ZBC              0x00000001
+#define NVOS32_ATTR2_ZBC_PREFER_ZBC                 0x00000002
+#define NVOS32_ATTR2_ZBC_REQUIRE_ONLY_ZBC           0x00000003
+
+/* Build ATTR values as composed bitfields matching kernel DRF_DEF patterns.
+ * LOCATION in bits 1:0, PAGE_SIZE in 5:3, COHERENCY in 9:7, PHYSICALITY in 13:12
+ */
+#define NV_OS32_ATTR_MAKE(loc, pgsz, coh, phys) \
+	(((NvU32)(loc) & 3u) | (((NvU32)(pgsz) & 7u) << 3) | \
+	 (((NvU32)(coh) & 7u) << 7) | (((NvU32)(phys) & 3u) << 12))
+
+#define NV_OS32_ATTR_VIDMEM_4K_UNCACHED \
+	NV_OS32_ATTR_MAKE(NVOS32_ATTR_LOCATION_VIDMEM, NVOS32_ATTR_PAGE_SIZE_4KB, \
+			  NVOS32_ATTR_COHERENCY_UNCACHED, NVOS32_ATTR_PHYSICALITY_DEFAULT)
+#define NV_OS32_ATTR_PCI_4K_UNCACHED \
+	NV_OS32_ATTR_MAKE(NVOS32_ATTR_LOCATION_PCI, NVOS32_ATTR_PAGE_SIZE_4KB, \
+			  NVOS32_ATTR_COHERENCY_UNCACHED, NVOS32_ATTR_PHYSICALITY_DEFAULT)
+#define NV_OS32_ATTR_PCI_4K_WRITECOMBINE \
+	NV_OS32_ATTR_MAKE(NVOS32_ATTR_LOCATION_PCI, NVOS32_ATTR_PAGE_SIZE_4KB, \
+			  NVOS32_ATTR_COHERENCY_WRITE_COMBINE, NVOS32_ATTR_PHYSICALITY_DEFAULT)
+#define NV_OS32_ATTR_VIDMEM_4K_CACHED \
+	NV_OS32_ATTR_MAKE(NVOS32_ATTR_LOCATION_VIDMEM, NVOS32_ATTR_PAGE_SIZE_4KB, \
+			  NVOS32_ATTR_COHERENCY_CACHED, NVOS32_ATTR_PHYSICALITY_DEFAULT)
+#define NV_OS32_ATTR2_GPU_CACHEABLE_NO_VAL \
+	(NVOS32_ATTR2_GPU_CACHEABLE_NO)
+
+/* NV_MEMORY_ALLOCATION_PARAMS - RmAlloc class params (nvos.h) */
+typedef struct {
+	NvU32    owner;
+	NvU32    type;
+	NvU32    flags;
+	NvU32    width;
+	NvU32    height;
+	NvS32    pitch;
+	NvU32    attr;
+	NvU32    attr2;
+	NvU32    format;
+	NvU32    comprCovg;
+	NvU32    zcullCovg;
+	NvU64    rangeLo   NV_ALIGN_BYTES(8);
+	NvU64    rangeHi   NV_ALIGN_BYTES(8);
+	NvU64    size      NV_ALIGN_BYTES(8);
+	NvU64    alignment NV_ALIGN_BYTES(8);
+	NvU64    offset    NV_ALIGN_BYTES(8);
+	NvU64    limit     NV_ALIGN_BYTES(8);
+	NvU64    address   NV_ALIGN_BYTES(8);
+	NvU32    ctagOffset;
+	NvHandle hVASpace;
+	NvU32    internalflags;
+	NvU32    tag;
+	NvS32    numaNode;
+} NV_MEMORY_ALLOCATION_PARAMS;
+
+/* NVOS32_PARAMETERS full layout (outer + data union) */
 typedef struct {
 	NvHandle hRoot;
 	NvHandle hObjectParent;
 	NvU32    function;
-	NvU32    hVASpace;
+	NvHandle hVASpace;
 	NvS16    ivcHeapNumber;
 	NvU16    pad;
-	NvU32    owner;
-	NvU32    type;
+	NvV32    status;
+	NvU64    total NV_ALIGN_BYTES(8);
+	NvU64    free  NV_ALIGN_BYTES(8);
+	union {
+		struct {
+			NvU32    owner;
+			NvHandle hMemory;
+			NvU32    type;
+			NvU32    flags;
+			NvU32    attr;
+			NvU32    format;
+			NvU32    comprCovg;
+			NvU32    zcullCovg;
+			NvU32    partitionStride;
+			NvU32    width;
+			NvU32    height;
+			NvU64    size      NV_ALIGN_BYTES(8);
+			NvU64    alignment NV_ALIGN_BYTES(8);
+			NvU64    offset    NV_ALIGN_BYTES(8);
+			NvU64    limit     NV_ALIGN_BYTES(8);
+			NvU64    address   NV_ALIGN_BYTES(8);
+			NvU64    rangeBegin NV_ALIGN_BYTES(8);
+			NvU64    rangeEnd   NV_ALIGN_BYTES(8);
+			NvU32    attr2;
+			NvU32    ctagOffset;
+			NvS32    numaNode;
+		} AllocSize;
+		struct {
+			NvU32    owner;
+			NvHandle hMemory;
+			NvU32    type;
+			NvU32    flags;
+			NvU32    height;
+			NvS32    pitch;
+			NvU32    attr;
+			NvU32    width;
+			NvU32    format;
+			NvU32    comprCovg;
+			NvU32    zcullCovg;
+			NvU32    partitionStride;
+			NvU64    size      NV_ALIGN_BYTES(8);
+			NvU64    alignment NV_ALIGN_BYTES(8);
+			NvU64    offset    NV_ALIGN_BYTES(8);
+			NvU64    limit     NV_ALIGN_BYTES(8);
+			NvU64    address   NV_ALIGN_BYTES(8);
+			NvU64    rangeBegin NV_ALIGN_BYTES(8);
+			NvU64    rangeEnd   NV_ALIGN_BYTES(8);
+			NvU32    attr2;
+			NvU32    ctagOffset;
+			NvS32    numaNode;
+		} AllocTiledPitchHeight;
+		struct {
+			NvU32    owner;
+			NvHandle hMemory;
+			NvU32    flags;
+		} Free;
+		struct {
+			NvU32 attr;
+			NvU64 offset NV_ALIGN_BYTES(8);
+			NvU64 size   NV_ALIGN_BYTES(8);
+			NvU64 base   NV_ALIGN_BYTES(8);
+		} Info;
+	} data;
+} NVOS32_PARAMETERS;
+
+/* Back-compat alias used by older code paths */
+typedef NVOS32_PARAMETERS NVOS32_PARAMETERS_ALLOC_SIZE;
+
+/* Channel / GPFIFO allocation (alloc_channel.h) */
+#define NV_MAX_SUBDEVICES 8
+#define CC_CHAN_ALLOC_IV_SIZE_DWORD    3
+#define CC_CHAN_ALLOC_NONCE_SIZE_DWORD 8
+
+typedef struct {
+	NvU64 base NV_ALIGN_BYTES(8);
+	NvU64 size NV_ALIGN_BYTES(8);
+	NvU32 addressSpace;
+	NvU32 cacheAttrib;
+} NV_MEMORY_DESC_PARAMS;
+
+typedef struct {
+	NvHandle hObjectError;
+	NvHandle hObjectBuffer;
+	NvU64    gpFifoOffset NV_ALIGN_BYTES(8);
+	NvU32    gpFifoEntries;
 	NvU32    flags;
-	NvU64    align  NV_ALIGN_BYTES(8);
-	NvU64    offset NV_ALIGN_BYTES(8);
-	NvU64    size   NV_ALIGN_BYTES(8);
-	NvU64    limit  NV_ALIGN_BYTES(8);
-	NvU64    address NV_ALIGN_BYTES(8);
-	NvU64    rangeBegin NV_ALIGN_BYTES(8);
-	NvU64    rangeEnd   NV_ALIGN_BYTES(8);
-	NvU32    attr;
-	NvU32    attr2;
-	NvU32    height;
-	NvU32    width;
-	NvU32    pitch;
-	NvU32    ctagOffset;
-	NvU32    partitionStride;
-	NvU32    width_padded;
-	NvU32    height_padded;
-	NvU32    comprCovg;
-	NvU32    zcullCovg;
-	NvU32    format;
-	NvU32    partCount;
-	NvHandle hMemory;
-	NvU32    status;
-} NVOS32_PARAMETERS_ALLOC_SIZE;
+	NvHandle hContextShare;
+	NvHandle hVASpace;
+	NvHandle hHandleVASpace;
+	NvHandle hUserdMemory[NV_MAX_SUBDEVICES];
+	NvU64    userdOffset[NV_MAX_SUBDEVICES] NV_ALIGN_BYTES(8);
+	NvU32    engineType;
+	NvU32    cid;
+	NvU32    subDeviceId;
+	NvHandle hObjectEccError;
+	NV_MEMORY_DESC_PARAMS instanceMem;
+	NV_MEMORY_DESC_PARAMS userdMem;
+	NV_MEMORY_DESC_PARAMS ramfcMem;
+	NV_MEMORY_DESC_PARAMS mthdbufMem;
+	NvHandle hPhysChannelGroup;
+	NvU32    internalFlags;
+	NV_MEMORY_DESC_PARAMS errorNotifierMem;
+	NV_MEMORY_DESC_PARAMS eccErrorNotifierMem;
+	NvU32    ProcessID;
+	NvU32    SubProcessID;
+	NvU32    encryptIv[CC_CHAN_ALLOC_IV_SIZE_DWORD];
+	NvU32    decryptIv[CC_CHAN_ALLOC_IV_SIZE_DWORD];
+	NvU32    hmacNonce[CC_CHAN_ALLOC_NONCE_SIZE_DWORD];
+	NvU32    tpcConfigID;
+	NvU32    pad_end;
+} NV_CHANNEL_ALLOC_PARAMS;
+
+typedef NV_CHANNEL_ALLOC_PARAMS NV_CHANNELGPFIFO_ALLOCATION_PARAMETERS;
+
+/* Engine types (ctrl2080gpu.h subset) */
+#define NV2080_ENGINE_TYPE_NULL         0x00000000
+#define NV2080_ENGINE_TYPE_GRAPHICS     0x00000001
+#define NV2080_ENGINE_TYPE_COPY0        0x0000000f
+#define NV2080_ENGINE_TYPE_COPY1        0x00000010
+#define NV2080_ENGINE_TYPE_COPY2        0x0000001a
+#define NV2080_ENGINE_TYPE_BSP          0x00000013
+#define NV2080_ENGINE_TYPE_VP           0x00000014
+#define NV2080_ENGINE_TYPE_SEC2         0x0000002c
+#define NV2080_ENGINE_TYPE_NVDEC0       0x0000001b
+#define NV2080_ENGINE_TYPE_NVENC0       0x0000001c
+#define NV2080_ENGINE_TYPE_NVENC1       0x0000001d
+#define NV2080_ENGINE_TYPE_NVJPEG0      0x0000002d
+#define NV2080_ENGINE_TYPE_OFA          0x0000002e
+#define NV2080_ENGINE_TYPE_SW           0x00000020
+
+/* GPFIFO schedule control (Kepler+ channel class, works for later GPFIFO too) */
+#define NVA06F_CTRL_CMD_GPFIFO_SCHEDULE  0xa06f0103
+#define NVC36F_CTRL_CMD_GPFIFO_GET_WORK_SUBMIT_TOKEN 0xc36f0108
+
+typedef struct {
+	NvBool bEnable;
+	NvBool bSkipSubmit;
+} NVA06F_CTRL_GPFIFO_SCHEDULE_PARAMS;
+
+typedef struct {
+	NvU32 workSubmitToken;
+} NVC36F_CTRL_CMD_GPFIFO_GET_WORK_SUBMIT_TOKEN_PARAMS;
+
+/* USERD / channel control block layout (Nv906fControl / Nvc36fControl compatible subset) */
+typedef volatile struct {
+	NvU32 Ignored00[0x10];  /* 0x00 - 0x3f */
+	NvU32 Put;              /* 0x40 */
+	NvU32 Get;              /* 0x44 */
+	NvU32 Reference;        /* 0x48 */
+	NvU32 PutHi;            /* 0x4c */
+	NvU32 Ignored01[0x02];  /* 0x50 - 0x57 */
+	NvU32 TopLevelGet;      /* 0x58 */
+	NvU32 TopLevelGetHi;    /* 0x5c */
+	NvU32 GetHi;            /* 0x60 */
+	NvU32 Ignored02[0x07];  /* 0x64 - 0x7f */
+	NvU32 Ignored03;        /* 0x80 */
+	NvU32 Ignored04[0x01];  /* 0x84 */
+	NvU32 GPGet;            /* 0x88 */
+	NvU32 GPPut;            /* 0x8c */
+} nvidia_userd_control_t;
+
+/* GPFIFO entry format (NV506F/NVC36F - 8 bytes) */
+#define NV_GP_ENTRY_SIZE                8
+#define NV_GP_ENTRY0_GET_SHIFT          2
+#define NV_GP_ENTRY1_GET_HI_MASK        0xff
+#define NV_GP_ENTRY1_PRIV_SHIFT         8
+#define NV_GP_ENTRY1_LEVEL_SHIFT        9
+#define NV_GP_ENTRY1_LENGTH_SHIFT       10
+#define NV_GP_ENTRY1_LENGTH_MASK        0x1fffff
+
+/* Class IDs for channel/memory/context */
+#define NV01_ROOT_NON_PRIV              0x00000001
+#define NV01_EVENT_OS_EVENT             0x00000079
+#define NV01_MEMORY_DEVICELESS          0x0000003f
+#define NV01_MEMORY_FRAMEBUFFER_CONSOLE 0x0000003c
+#define NV01_MEMORY_LIST_SYSTEM         0x00000082
+#define NV01_MEMORY_LIST_FBMEM          0x00000083
+#define NV01_MEMORY_LIST_OBJECT         0x00000081
+#define NV50_MEMORY_VIRTUAL             0x000050a0
+#define FERMI_CONTEXT_SHARE_A           0x00009067
+#define KEPLER_CHANNEL_GROUP_A          0x0000a06c
+#define GF100_CHANNEL_GPFIFO            0x0000906f
+#define KEPLER_CHANNEL_GPFIFO_A         0x0000a06f
+#define KEPLER_CHANNEL_GPFIFO_B         0x0000a16f
+#define KEPLER_CHANNEL_GPFIFO_C         0x0000a26f
+#define MAXWELL_CHANNEL_GPFIFO_A        0x0000b06f
+#define PASCAL_CHANNEL_GPFIFO_A         0x0000c06f
+#define VOLTA_CHANNEL_GPFIFO_A          0x0000c36f
+#define TURING_CHANNEL_GPFIFO_A         0x0000c46f
+#define AMPERE_CHANNEL_GPFIFO_A         0x0000c56f
+#define HOPPER_CHANNEL_GPFIFO_A         0x0000c76f
+#define BLACKWELL_CHANNEL_GPFIFO_A      0x0000c86f
+
+/* Context DMA / error notifier */
+#define NV01_CONTEXT_DMA_FROM_MEMORY    0x00000002
+#define NV01_CONTEXT_ERROR_TO_MEMORY    0x00000003
+#define NV_EVENT_BUFFER_CHANNEL         0x0000907e
+
 
 /* NV0000_CTRL_GPU_GET_ATTACHED_IDS params */
 #define NV0000_CTRL_GPU_MAX_ATTACHED_GPUS 32
@@ -501,5 +789,16 @@ typedef struct {
 #ifdef __cplusplus
 }
 #endif
+
+
+typedef struct nv_ioctl_wait_open_complete {
+	NvS32 rc;
+	NvU32 adapterStatus;
+} nv_ioctl_wait_open_complete_t;
+
+typedef struct nv_ioctl_attach_gpus_to_fd {
+	NvU32 gpuIds[NV_MAX_DEVICES];
+	NvU32 gpuCount;
+} nv_ioctl_attach_gpus_to_fd_t;
 
 #endif /* _NVIDIA_RM_H_ */

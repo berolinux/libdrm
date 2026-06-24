@@ -293,3 +293,47 @@ bool nvidia_probe_available(void);
 #endif
 
 #endif /* _NVIDIA_DRM_USER_H_ */
+
+/* --- Extended RM helpers (channel / events / memory class alloc) --- */
+
+/** RmAlloc memory via NV_MEMORY_ALLOCATION_PARAMS (preferred over vidheap) */
+int nvidia_rm_memory_alloc(nvidia_device_handle device,
+			   uint32_t h_parent,
+			   uint32_t *h_memory_out,
+			   uint32_t h_class,
+			   uint32_t type,
+			   uint32_t flags,
+			   uint32_t attr,
+			   uint32_t attr2,
+			   uint64_t size,
+			   uint64_t alignment,
+			   uint64_t *offset_out,
+			   uint64_t *limit_out);
+
+/** Allocate /dev/nvidia event fd association (NV_ESC_ALLOC_OS_EVENT) */
+int nvidia_rm_alloc_os_event(nvidia_device_handle device,
+			     uint32_t h_device,
+			     int event_fd);
+
+int nvidia_rm_free_os_event(nvidia_device_handle device,
+			    uint32_t h_device,
+			    int event_fd);
+
+/** Wait for RM adapter init (NV_ESC_WAIT_OPEN_COMPLETE) */
+int nvidia_rm_wait_open_complete(nvidia_device_handle device,
+				 int32_t *rc_out,
+				 uint32_t *adapter_status_out);
+
+/** Schedule / enable GPFIFO channel (NVA06F_CTRL_CMD_GPFIFO_SCHEDULE) */
+int nvidia_rm_gpfifo_schedule(nvidia_device_handle device,
+			      uint32_t h_channel,
+			      bool enable);
+
+/** Get work submit token for doorbell (Volta+; NVC36F_CTRL_CMD_GPFIFO_GET_WORK_SUBMIT_TOKEN) */
+int nvidia_rm_gpfifo_get_work_submit_token(nvidia_device_handle device,
+					   uint32_t h_channel,
+					   uint32_t *token_out);
+
+/** Pack an 8-byte GPFIFO entry (NV506F/NVC36F format) into entry[2] */
+void nvidia_gp_entry_pack(uint32_t entry[2], uint64_t gpu_addr,
+			  uint32_t length_dwords, bool wait, bool priv);

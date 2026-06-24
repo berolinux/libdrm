@@ -1,4 +1,5 @@
 /*
+#include <stdbool.h>
  * Copyright 2026 - Open NVIDIA userspace driver project
  * SPDX-License-Identifier: MIT
  *
@@ -166,11 +167,12 @@ nvidia_rm_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
 		    void *alloc_parms, uint32_t alloc_parms_size)
 {
 	/*
-	 * Prefer NVOS64 (NV_ESC_RM_ALLOC) which supports rights + flags.
-	 * If alloc_parms is non-NULL we pass its pointer; the kernel copies
-	 * from userspace via the pAllocParms field.
+	 * Prefer NVOS64 (NV_ESC_RM_ALLOC) which supports rights + flags + paramsSize.
+	 * Kernel copies alloc_parms from userspace via pAllocParms/paramsSize.
+	 * Fall back to NVOS21 (also with paramsSize) on older modules.
 	 */
 	NVOS64_PARAMETERS p64;
+	NVOS21_PARAMETERS p21;
 	int ret;
 
 	memset(&p64, 0, sizeof(p64));
@@ -180,37 +182,34 @@ nvidia_rm_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
 	p64.hClass = h_class;
 	p64.pAllocParms = alloc_parms ? (NvU64)(uintptr_t)alloc_parms : 0;
 	p64.pRightsRequested = 0;
+	p64.paramsSize = alloc_parms_size;
 	p64.flags = 0;
 	p64.status = NV_ERR_GENERIC;
 
 	ret = rm_ioctl_auto(fd, NV_ESC_RM_ALLOC, &p64, sizeof(p64));
-	if (ret != 0)
-		return -errno;
-
-	if (p64.status != NV_OK) {
-		/* Fallback: try NVOS21 layout on older modules */
-		NVOS21_PARAMETERS p21;
-
-		memset(&p21, 0, sizeof(p21));
-		p21.hRoot = h_root;
-		p21.hObjectParent = h_parent;
-		p21.hObjectNew = h_new ? *h_new : 0;
-		p21.hClass = h_class;
-		p21.pAllocParms = alloc_parms ? (NvU64)(uintptr_t)alloc_parms : 0;
-		p21.status = NV_ERR_GENERIC;
-
-		ret = rm_ioctl_auto(fd, NV_ESC_RM_ALLOC, &p21, sizeof(p21));
-		if (ret != 0)
-			return -errno;
-		if (p21.status != NV_OK)
-			return -(int)p21.status;
+	if (ret == 0 && p64.status == NV_OK) {
 		if (h_new)
-			*h_new = p21.hObjectNew;
+			*h_new = p64.hObjectNew;
 		return 0;
 	}
 
+	/* Fallback: NVOS21 layout (also carries paramsSize in current nvos.h) */
+	memset(&p21, 0, sizeof(p21));
+	p21.hRoot = h_root;
+	p21.hObjectParent = h_parent;
+	p21.hObjectNew = h_new ? *h_new : 0;
+	p21.hClass = h_class;
+	p21.pAllocParms = alloc_parms ? (NvU64)(uintptr_t)alloc_parms : 0;
+	p21.paramsSize = alloc_parms_size;
+	p21.status = NV_ERR_GENERIC;
+
+	ret = rm_ioctl_auto(fd, NV_ESC_RM_ALLOC, &p21, sizeof(p21));
+	if (ret != 0)
+		return -errno;
+	if (p21.status != NV_OK)
+		return -(int)p21.status;
 	if (h_new)
-		*h_new = p64.hObjectNew;
+		*h_new = p21.hObjectNew;
 	return 0;
 }
 
@@ -317,32 +316,24 @@ nvidia_rm_vidheap_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
 			    NvU32 attr, NvU32 attr2,
 			    NvHandle *h_memory, NvU64 *offset, NvU64 *limit)
 {
-	/*
-	 * NVOS32 vidheap uses a large union; we populate the alloc-size
-	 * fields matching the kernel's NVOS32_PARAMETERS layout as used by
-	 * nvkms and the binary driver.  The function field selects the op.
-	 *
-	 * Full NVOS32_PARAMETERS is much larger; we send a buffer sized to
-	 * the kernel expectation via xfer.  For now send our simplified
-	 * structure which covers the common alloc-size path.
-	 */
-	NVOS32_PARAMETERS_ALLOC_SIZE p;
+	/* Full NVOS32_PARAMETERS with AllocSize member (nvos.h layout). */
+	NVOS32_PARAMETERS p;
 	int ret;
 
 	memset(&p, 0, sizeof(p));
 	p.hRoot = h_root;
 	p.hObjectParent = h_parent;
 	p.function = NVOS32_FUNCTION_ALLOC_SIZE;
-	p.owner = 0x10de; /* NVIDIA RM owner tag commonly used by userspace */
-	p.type = type ? type : NVOS32_TYPE_DMA;
-	p.flags = flags | NVOS32_ALLOC_FLAGS_MEMORY_HANDLE_PROVIDED |
-		  NVOS32_ALLOC_FLAGS_MAP_NOT_REQUIRED;
-	p.align = align ? align : NVIDIA_DEFAULT_ALIGNMENT;
-	p.size = size;
-	p.attr = attr;
-	p.attr2 = attr2;
-	p.hMemory = h_memory ? *h_memory : 0;
 	p.status = NV_ERR_GENERIC;
+	p.data.AllocSize.owner = h_root ? h_root : 0x10de;
+	p.data.AllocSize.hMemory = h_memory ? *h_memory : 0;
+	p.data.AllocSize.type = type ? type : NVOS32_TYPE_DMA;
+	p.data.AllocSize.flags = flags | NVOS32_ALLOC_FLAGS_MEMORY_HANDLE_PROVIDED |
+				 NVOS32_ALLOC_FLAGS_MAP_NOT_REQUIRED;
+	p.data.AllocSize.attr = attr ? attr : NV_OS32_ATTR_VIDMEM_4K_UNCACHED;
+	p.data.AllocSize.attr2 = attr2;
+	p.data.AllocSize.size = size;
+	p.data.AllocSize.alignment = align ? align : NVIDIA_DEFAULT_ALIGNMENT;
 
 	ret = rm_ioctl_auto(fd, NV_ESC_RM_VID_HEAP_CONTROL, &p, sizeof(p));
 	if (ret != 0)
@@ -351,11 +342,11 @@ nvidia_rm_vidheap_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
 		return -(int)p.status;
 
 	if (h_memory)
-		*h_memory = p.hMemory;
+		*h_memory = p.data.AllocSize.hMemory;
 	if (offset)
-		*offset = p.offset;
+		*offset = p.data.AllocSize.offset;
 	if (limit)
-		*limit = p.limit;
+		*limit = p.data.AllocSize.limit;
 	return 0;
 }
 
@@ -363,15 +354,17 @@ int
 nvidia_rm_vidheap_free_raw(int fd, NvHandle h_root, NvHandle h_parent,
 			   NvHandle h_memory)
 {
-	NVOS32_PARAMETERS_ALLOC_SIZE p;
+	NVOS32_PARAMETERS p;
 	int ret;
 
 	memset(&p, 0, sizeof(p));
 	p.hRoot = h_root;
 	p.hObjectParent = h_parent;
 	p.function = NVOS32_FUNCTION_FREE;
-	p.hMemory = h_memory;
 	p.status = NV_ERR_GENERIC;
+	p.data.Free.owner = h_root ? h_root : 0x10de;
+	p.data.Free.hMemory = h_memory;
+	p.data.Free.flags = NVOS32_FREE_FLAGS_MEMORY_HANDLE_PROVIDED;
 
 	ret = rm_ioctl_auto(fd, NV_ESC_RM_VID_HEAP_CONTROL, &p, sizeof(p));
 	if (ret != 0)
@@ -379,6 +372,167 @@ nvidia_rm_vidheap_free_raw(int fd, NvHandle h_root, NvHandle h_parent,
 	if (p.status != NV_OK)
 		return -(int)p.status;
 	return 0;
+}
+
+/*
+ * Preferred memory allocation path: RmAlloc(NV01_MEMORY_LOCAL_USER /
+ * NV01_MEMORY_SYSTEM) with NV_MEMORY_ALLOCATION_PARAMS.  This is what
+ * nvidia-push / nvkms / the binary driver use; vidheap is the older path.
+ */
+int
+nvidia_rm_memory_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
+			   NvHandle *h_memory, NvV32 h_class,
+			   NvU32 owner, NvU32 type, NvU32 flags,
+			   NvU32 attr, NvU32 attr2,
+			   NvU64 size, NvU64 alignment,
+			   NvU64 *offset_out, NvU64 *limit_out)
+{
+	NV_MEMORY_ALLOCATION_PARAMS mp;
+	NvHandle h_mem;
+	int ret;
+
+	if (!h_memory || size == 0)
+		return -EINVAL;
+
+	memset(&mp, 0, sizeof(mp));
+	mp.owner = owner ? owner : h_root;
+	mp.type = type ? type : NVOS32_TYPE_DMA;
+	mp.flags = flags | NVOS32_ALLOC_FLAGS_ALIGNMENT_FORCE |
+		   NVOS32_ALLOC_FLAGS_MAP_NOT_REQUIRED;
+	mp.attr = attr;
+	mp.attr2 = attr2;
+	mp.size = size;
+	mp.alignment = alignment ? alignment : NVIDIA_DEFAULT_ALIGNMENT;
+	mp.numaNode = -1;
+
+	h_mem = *h_memory;
+	ret = nvidia_rm_alloc_raw(fd, h_root, h_parent, &h_mem, h_class,
+				  &mp, sizeof(mp));
+	if (ret != 0)
+		return ret;
+
+	*h_memory = h_mem;
+	if (offset_out)
+		*offset_out = mp.offset;
+	if (limit_out)
+		*limit_out = mp.limit ? mp.limit : (mp.size ? mp.size - 1 : 0);
+	return 0;
+}
+
+int
+nvidia_rm_alloc_os_event_raw(int fd_ctl, NvHandle h_client, NvHandle h_device,
+			     int event_fd, NvU32 *status_out)
+{
+	nv_ioctl_alloc_os_event_t p;
+	int req;
+	int ret;
+
+	memset(&p, 0, sizeof(p));
+	p.hClient = h_client;
+	p.hDevice = h_device;
+	p.fd = (NvU32)event_fd;
+	p.Status = NV_ERR_GENERIC;
+
+	req = _IOC(_IOC_READ | _IOC_WRITE, NV_IOCTL_MAGIC, NV_ESC_ALLOC_OS_EVENT,
+		   sizeof(p));
+	ret = nvidia_ioctl(fd_ctl, req, &p);
+	if (ret != 0)
+		return -errno;
+	if (status_out)
+		*status_out = p.Status;
+	if (p.Status != NV_OK)
+		return -(int)p.Status;
+	return 0;
+}
+
+int
+nvidia_rm_free_os_event_raw(int fd_ctl, NvHandle h_client, NvHandle h_device,
+			    int event_fd)
+{
+	nv_ioctl_free_os_event_t p;
+	int req;
+	int ret;
+
+	memset(&p, 0, sizeof(p));
+	p.hClient = h_client;
+	p.hDevice = h_device;
+	p.fd = (NvU32)event_fd;
+	p.Status = NV_ERR_GENERIC;
+
+	req = _IOC(_IOC_READ | _IOC_WRITE, NV_IOCTL_MAGIC, NV_ESC_FREE_OS_EVENT,
+		   sizeof(p));
+	ret = nvidia_ioctl(fd_ctl, req, &p);
+	if (ret != 0)
+		return -errno;
+	if (p.Status != NV_OK)
+		return -(int)p.Status;
+	return 0;
+}
+
+int
+nvidia_rm_wait_open_complete_raw(int fd_ctl, NvS32 *rc_out, NvU32 *adapter_status_out)
+{
+	nv_ioctl_wait_open_complete_t p;
+	int req;
+	int ret;
+
+	memset(&p, 0, sizeof(p));
+	req = _IOC(_IOC_READ | _IOC_WRITE, NV_IOCTL_MAGIC,
+		   NV_ESC_WAIT_OPEN_COMPLETE, sizeof(p));
+	ret = nvidia_ioctl(fd_ctl, req, &p);
+	if (ret != 0)
+		return -errno;
+	if (rc_out)
+		*rc_out = p.rc;
+	if (adapter_status_out)
+		*adapter_status_out = p.adapterStatus;
+	return 0;
+}
+
+int
+nvidia_rm_gpfifo_schedule_raw(int fd, NvHandle h_client, NvHandle h_channel,
+			      NvBool enable)
+{
+	NVA06F_CTRL_GPFIFO_SCHEDULE_PARAMS params;
+
+	memset(&params, 0, sizeof(params));
+	params.bEnable = enable;
+	params.bSkipSubmit = NV_FALSE;
+	return nvidia_rm_control_raw(fd, h_client, h_channel,
+				     NVA06F_CTRL_CMD_GPFIFO_SCHEDULE,
+				     &params, sizeof(params));
+}
+
+int
+nvidia_rm_gpfifo_get_work_submit_token_raw(int fd, NvHandle h_client,
+					   NvHandle h_channel,
+					   NvU32 *token_out)
+{
+	NVC36F_CTRL_CMD_GPFIFO_GET_WORK_SUBMIT_TOKEN_PARAMS params;
+	int ret;
+
+	memset(&params, 0, sizeof(params));
+	ret = nvidia_rm_control_raw(fd, h_client, h_channel,
+				    NVC36F_CTRL_CMD_GPFIFO_GET_WORK_SUBMIT_TOKEN,
+				    &params, sizeof(params));
+	if (ret == 0 && token_out)
+		*token_out = params.workSubmitToken;
+	return ret;
+}
+
+void
+nvidia_gp_entry_pack(NvU32 entry[2], NvU64 gpu_addr, NvU32 length_dwords,
+		     bool wait, bool priv)
+{
+	/* NV506F/NVC36F GPFIFO entry: 8 bytes, GET in bits 31:2 of word0 */
+	entry[0] = (NvU32)((gpu_addr >> NV_GP_ENTRY0_GET_SHIFT) << NV_GP_ENTRY0_GET_SHIFT);
+	entry[1] = ((NvU32)(gpu_addr >> 32) & NV_GP_ENTRY1_GET_HI_MASK) |
+		   ((length_dwords & NV_GP_ENTRY1_LENGTH_MASK) << NV_GP_ENTRY1_LENGTH_SHIFT);
+	if (priv)
+		entry[1] |= (1u << NV_GP_ENTRY1_PRIV_SHIFT);
+	if (wait)
+		entry[1] |= (1u << NV_GP_ENTRY1_LEVEL_SHIFT); /* LEVEL_SUBROUTINE often used with wait semantics on some gens; SYNC is separate on older */
+	(void)wait;
 }
 
 int
