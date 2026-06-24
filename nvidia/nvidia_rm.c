@@ -1314,6 +1314,95 @@ nvidia_rm_memory_virtual_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
 	return 0;
 }
 
+/* tick95: NV2080_CTRL_CMD_TIMER_GET_TIME on subdevice */
+int
+nvidia_rm_timer_get_time_raw(int fd, NvHandle h_client, NvHandle h_subdevice,
+			     NvU64 *time_nsec_out)
+{
+	NV2080_CTRL_TIMER_GET_TIME_PARAMS params;
+	int ret;
+
+	if (!h_subdevice)
+		return -EINVAL;
+	memset(&params, 0, sizeof(params));
+	ret = nvidia_rm_control_raw(fd, h_client, h_subdevice,
+				    NV2080_CTRL_CMD_TIMER_GET_TIME,
+				    &params, sizeof(params));
+	if (ret == 0 && time_nsec_out)
+		*time_nsec_out = params.time_nsec;
+	return ret;
+}
+
+/*
+ * tick95: Export RM object to FD via NV0000_CTRL on client (h_client as object).
+ * Kernel escape NV_ESC_RM_EXPORT_OBJECT_TO_FD uses the same params layout in some
+ * builds; control path is the documented usermode RMAPI entry.
+ */
+int
+nvidia_rm_export_object_to_fd_raw(int fd_ctl, NvHandle h_client,
+				  NvHandle h_device, NvHandle h_parent,
+				  NvHandle h_object, int *fd_inout,
+				  NvU32 flags)
+{
+	NV0000_CTRL_OS_UNIX_EXPORT_OBJECT_TO_FD_PARAMS params;
+	int ret;
+
+	if (!h_client || !h_object || !fd_inout)
+		return -EINVAL;
+	memset(&params, 0, sizeof(params));
+	params.object.type = NV0000_CTRL_OS_UNIX_EXPORT_OBJECT_TYPE_RM;
+	params.object.data.rmObject.hDevice = h_device;
+	params.object.data.rmObject.hParent = h_parent ? h_parent : h_device;
+	params.object.data.rmObject.hObject = h_object;
+	params.fd = *fd_inout;
+	params.flags = flags;
+
+	ret = nvidia_rm_control_raw(fd_ctl, h_client, h_client,
+				    NV0000_CTRL_CMD_OS_UNIX_EXPORT_OBJECT_TO_FD,
+				    &params, sizeof(params));
+	if (ret != 0) {
+		/* Fallback: direct escape ioctl with same param block */
+		ret = rm_ioctl_auto(fd_ctl, NV_ESC_RM_EXPORT_OBJECT_TO_FD,
+				    &params, sizeof(params));
+		if (ret != 0)
+			return -errno;
+		/* escape path may not set NV status in same field; accept fd */
+	}
+	if (params.fd >= 0)
+		*fd_inout = params.fd;
+	return ret;
+}
+
+int
+nvidia_rm_import_object_from_fd_raw(int fd_ctl, NvHandle h_client,
+				    NvHandle h_device, NvHandle h_parent,
+				    int import_fd, NvHandle *h_object_out)
+{
+	NV0000_CTRL_OS_UNIX_IMPORT_OBJECT_FROM_FD_PARAMS params;
+	int ret;
+
+	if (!h_client || import_fd < 0 || !h_object_out)
+		return -EINVAL;
+	memset(&params, 0, sizeof(params));
+	params.fd = import_fd;
+	params.object.type = NV0000_CTRL_OS_UNIX_EXPORT_OBJECT_TYPE_RM;
+	params.object.data.rmObject.hDevice = h_device;
+	params.object.data.rmObject.hParent = h_parent ? h_parent : h_device;
+	params.object.data.rmObject.hObject = 0;
+
+	ret = nvidia_rm_control_raw(fd_ctl, h_client, h_client,
+				    NV0000_CTRL_CMD_OS_UNIX_IMPORT_OBJECT_FROM_FD,
+				    &params, sizeof(params));
+	if (ret != 0) {
+		ret = rm_ioctl_auto(fd_ctl, NV_ESC_RM_IMPORT_OBJECT_FROM_FD,
+				    &params, sizeof(params));
+		if (ret != 0)
+			return -errno;
+	}
+	*h_object_out = params.object.data.rmObject.hObject;
+	return (*h_object_out) ? 0 : -ENOENT;
+}
+
 int
 nvidia_rm_channel_group_alloc_raw(int fd, NvHandle h_root, NvHandle h_device,
 				  NvHandle *h_group_out,

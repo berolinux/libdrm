@@ -226,6 +226,16 @@ int nvidia_rm_memory_virtual_alloc_raw(int fd, NvHandle h_root, NvHandle h_paren
 				       NvHandle *h_memory_out, NvHandle h_vaspace,
 				       NvU64 offset, NvU64 *limit_inout,
 				       NvV32 h_class);
+/* tick95: timer + export/import RM object via FD */
+int nvidia_rm_timer_get_time_raw(int fd, NvHandle h_client, NvHandle h_subdevice,
+				 NvU64 *time_nsec_out);
+int nvidia_rm_export_object_to_fd_raw(int fd_ctl, NvHandle h_client,
+				      NvHandle h_device, NvHandle h_parent,
+				      NvHandle h_object, int *fd_inout,
+				      NvU32 flags);
+int nvidia_rm_import_object_from_fd_raw(int fd_ctl, NvHandle h_client,
+					NvHandle h_device, NvHandle h_parent,
+					int import_fd, NvHandle *h_object_out);
 int nvidia_rm_channel_group_alloc_raw(int fd, NvHandle h_root, NvHandle h_device,
 				      NvHandle *h_group_out,
 				      NvHandle h_object_error,

@@ -171,6 +171,50 @@ typedef struct {
 #define NV2080_CTRL_CMD_TIMER_GET_TIME              0x20800403
 #define NV2080_CTRL_CMD_EVENT_SET_NOTIFICATION      0x20800301
 
+/* tick95: timer + Unix object export/import (ctrl2080tmr / ctrl0000unix) */
+typedef struct {
+	NvU64 time_nsec NV_ALIGN_BYTES(8);
+} NV2080_CTRL_TIMER_GET_TIME_PARAMS;
+
+#define NV0000_CTRL_CMD_OS_UNIX_EXPORT_OBJECT_TO_FD   0x3d05
+#define NV0000_CTRL_CMD_OS_UNIX_IMPORT_OBJECT_FROM_FD 0x3d06
+#define NV0000_CTRL_OS_UNIX_EXPORT_OBJECT_TYPE_NONE   0x0u
+#define NV0000_CTRL_OS_UNIX_EXPORT_OBJECT_TYPE_RM     0x1u
+#define NV0000_CTRL_OS_UNIX_EXPORT_OBJECT_TO_FD_FLAGS_EMPTY_FD_FALSE 0x0u
+#define NV0000_CTRL_OS_UNIX_EXPORT_OBJECT_TO_FD_FLAGS_EMPTY_FD_TRUE  0x1u
+
+typedef struct {
+	NvU32 type; /* NV0000_CTRL_OS_UNIX_EXPORT_OBJECT_TYPE_* */
+	union {
+		struct {
+			NvHandle hDevice;
+			NvHandle hParent;
+			NvHandle hObject;
+		} rmObject;
+	} data;
+} NV0000_CTRL_OS_UNIX_EXPORT_OBJECT;
+
+typedef struct {
+	NV0000_CTRL_OS_UNIX_EXPORT_OBJECT object;
+	NvS32 fd;
+	NvU32 flags;
+} NV0000_CTRL_OS_UNIX_EXPORT_OBJECT_TO_FD_PARAMS;
+
+typedef struct {
+	NvS32 fd;
+	NV0000_CTRL_OS_UNIX_EXPORT_OBJECT object;
+} NV0000_CTRL_OS_UNIX_IMPORT_OBJECT_FROM_FD_PARAMS;
+
+/* Common subdevice notifiers (cl2080.h subset; for EVENT_SET_NOTIFICATION) */
+#define NV2080_NOTIFIERS_SW                         0x00000000u
+#define NV2080_NOTIFIERS_HOTPLUG                    0x00000001u
+#define NV2080_NOTIFIERS_POWER_CONNECTOR            0x00000002u
+#define NV2080_NOTIFIERS_THERMAL_SW                 0x00000003u
+#define NV2080_NOTIFIERS_THERMAL_HW                 0x00000004u
+#define NV2080_NOTIFIERS_FULL_SCREEN_CHANGE         0x00000005u
+#define NV2080_NOTIFIERS_EVENTBUFFER                0x00000006u
+#define NV2080_NOTIFIERS_RC                         0x00000017u  /* channel RC recovery */
+
 /* NVOS32 vidheap functions */
 #define NVOS32_FUNCTION_ALLOC_SIZE                  2
 #define NVOS32_FUNCTION_FREE                        5

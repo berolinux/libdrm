@@ -574,6 +574,34 @@ int nvidia_rm_memory_virtual_alloc(nvidia_device_handle device,
 				   uint64_t *limit_inout,
 				   uint32_t h_class);
 
+/**
+ * tick95: GPU timer nanoseconds (NV2080_CTRL_CMD_TIMER_GET_TIME on subdevice).
+ * Useful for sema/timeout correlation vs host clock.
+ */
+int nvidia_rm_timer_get_time(nvidia_device_handle device,
+			     uint64_t *time_nsec_out);
+
+/**
+ * Export an RM object to a Unix FD (NV0000_CTRL_CMD_OS_UNIX_EXPORT_OBJECT_TO_FD).
+ * *fd_inout: pass -1 to request RM/library assign (kernel may still want pre-opened fd);
+ *            on success contains the export fd (caller owns).
+ * h_parent: parent of object (often device or channel parent).
+ */
+int nvidia_rm_export_object_to_fd(nvidia_device_handle device,
+				  uint32_t h_parent,
+				  uint32_t h_object,
+				  int *fd_inout,
+				  uint32_t flags);
+
+/**
+ * Import an RM object handle from an export FD into this client.
+ * *h_object_out: new handle under h_parent in this client.
+ */
+int nvidia_rm_import_object_from_fd(nvidia_device_handle device,
+				    uint32_t h_parent,
+				    int import_fd,
+				    uint32_t *h_object_out);
+
 int nvidia_rm_context_dma_alloc(nvidia_device_handle device,
 				uint32_t h_parent,
 				uint32_t *h_ctxdma_out,

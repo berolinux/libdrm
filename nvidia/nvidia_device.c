@@ -1354,6 +1354,49 @@ nvidia_rm_memory_virtual_alloc(nvidia_device_handle device,
 }
 
 int
+nvidia_rm_timer_get_time(nvidia_device_handle device, uint64_t *time_nsec_out)
+{
+	if (!device || !device->h_subdevice)
+		return -EINVAL;
+	return nvidia_rm_timer_get_time_raw(device->fd_ctl, device->h_client,
+					    device->h_subdevice, time_nsec_out);
+}
+
+int
+nvidia_rm_export_object_to_fd(nvidia_device_handle device,
+			      uint32_t h_parent,
+			      uint32_t h_object,
+			      int *fd_inout,
+			      uint32_t flags)
+{
+	if (!device || !h_object || !fd_inout)
+		return -EINVAL;
+	return nvidia_rm_export_object_to_fd_raw(
+		device->fd_ctl, device->h_client, device->h_device,
+		h_parent ? h_parent : device->h_device, h_object, fd_inout,
+		flags);
+}
+
+int
+nvidia_rm_import_object_from_fd(nvidia_device_handle device,
+				uint32_t h_parent,
+				int import_fd,
+				uint32_t *h_object_out)
+{
+	NvHandle h_obj = 0;
+	int ret;
+
+	if (!device || import_fd < 0 || !h_object_out)
+		return -EINVAL;
+	ret = nvidia_rm_import_object_from_fd_raw(
+		device->fd_ctl, device->h_client, device->h_device,
+		h_parent ? h_parent : device->h_device, import_fd, &h_obj);
+	if (ret == 0)
+		*h_object_out = h_obj;
+	return ret;
+}
+
+int
 nvidia_rm_channel_group_alloc(nvidia_device_handle device,
 			      uint32_t *h_group_out,
 			      uint32_t h_object_error,
