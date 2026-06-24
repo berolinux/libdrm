@@ -663,6 +663,10 @@ typedef struct {
 /* GPFIFO schedule control (Kepler+ channel class, works for later GPFIFO too) */
 #define NVA06F_CTRL_CMD_GPFIFO_SCHEDULE  0xa06f0103
 #define NVC36F_CTRL_CMD_GPFIFO_GET_WORK_SUBMIT_TOKEN 0xc36f0108
+/* Optional: set error-notifier slot for work_submit_token (ctrlc36f.h) */
+#define NVC36F_CTRL_CMD_GPFIFO_SET_WORK_SUBMIT_TOKEN_NOTIF_INDEX 0xc36f010a
+/* Default notifier index for doorbell token (channel GPFIFO notification types) */
+#define NV_CHANNELGPFIFO_NOTIFICATION_TYPE_WORK_SUBMIT_TOKEN 0x1
 
 typedef struct {
 	NvBool bEnable;
@@ -672,6 +676,10 @@ typedef struct {
 typedef struct {
 	NvU32 workSubmitToken;
 } NVC36F_CTRL_CMD_GPFIFO_GET_WORK_SUBMIT_TOKEN_PARAMS;
+
+typedef struct {
+	NvU32 index;
+} NVC36F_CTRL_GPFIFO_SET_WORK_SUBMIT_TOKEN_NOTIF_INDEX_PARAMS;
 
 /* USERD / channel control block layout (Nv906fControl / Nvc36fControl compatible subset) */
 typedef volatile struct {

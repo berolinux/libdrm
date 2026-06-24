@@ -120,6 +120,10 @@ int nvidia_rm_gpfifo_schedule_raw(int fd, NvHandle h_client, NvHandle h_channel,
 int nvidia_rm_gpfifo_get_work_submit_token_raw(int fd, NvHandle h_client,
 					       NvHandle h_channel,
 					       NvU32 *token_out);
+int nvidia_rm_gpfifo_set_work_submit_token_notif_index_raw(int fd,
+							   NvHandle h_client,
+							   NvHandle h_channel,
+							   NvU32 index);
 int nvidia_rm_vaspace_alloc_raw(int fd, NvHandle h_root, NvHandle h_device,
 				NvHandle *h_vaspace_out,
 				NvU32 index, NvU32 flags,

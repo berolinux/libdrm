@@ -522,6 +522,25 @@ nvidia_rm_gpfifo_get_work_submit_token_raw(int fd, NvHandle h_client,
 	return ret;
 }
 
+/*
+ * Best-effort: set error-context notifier slot for work_submit_token
+ * (ctrlc36f.h).  Default index NV_CHANNELGPFIFO_NOTIFICATION_TYPE_WORK_SUBMIT_TOKEN.
+ * Non-fatal if RM rejects; GET_WORK_SUBMIT_TOKEN is still the primary path.
+ */
+int
+nvidia_rm_gpfifo_set_work_submit_token_notif_index_raw(int fd, NvHandle h_client,
+						       NvHandle h_channel,
+						       NvU32 index)
+{
+	NVC36F_CTRL_GPFIFO_SET_WORK_SUBMIT_TOKEN_NOTIF_INDEX_PARAMS params;
+
+	memset(&params, 0, sizeof(params));
+	params.index = index;
+	return nvidia_rm_control_raw(fd, h_client, h_channel,
+				     NVC36F_CTRL_CMD_GPFIFO_SET_WORK_SUBMIT_TOKEN_NOTIF_INDEX,
+				     &params, sizeof(params));
+}
+
 int
 nvidia_rm_vaspace_alloc_raw(int fd, NvHandle h_root, NvHandle h_device,
 			    NvHandle *h_vaspace_out,
