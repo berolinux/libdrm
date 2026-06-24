@@ -470,3 +470,23 @@ int nvidia_notifier_wait(volatile void *notifier, bool clear_on_ok,
 
 /** Write notifier to DONE_SUCCESS (host reset before submit). */
 void nvidia_notifier_reset(volatile void *notifier);
+
+#define NVIDIA_MAX_ENGINES_LIST   84
+#define NVIDIA_MAX_ENGINE_CLASSES 128
+
+/** NV2080_CTRL_CMD_GPU_GET_ENGINES_V2 — list engine type IDs on subdevice. */
+int nvidia_rm_gpu_get_engines(nvidia_device_handle device,
+			      uint32_t *engine_list, uint32_t *count_inout);
+
+/** NV2080_CTRL_CMD_GPU_GET_ENGINE_CLASSLIST — classes for one engine type. */
+int nvidia_rm_gpu_get_engine_classlist(nvidia_device_handle device,
+				       uint32_t engine_type,
+				       uint32_t *class_list,
+				       uint32_t *count_inout);
+
+/**
+ * Pick highest class ID from classlist that is >= min_class and <= max_class
+ * (inclusive).  Returns 0 if none match.
+ */
+uint32_t nvidia_pick_class_in_range(const uint32_t *class_list, uint32_t count,
+				    uint32_t min_class, uint32_t max_class);

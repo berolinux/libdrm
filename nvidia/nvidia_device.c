@@ -1003,6 +1003,98 @@ nvidia_rm_ctxshare_alloc(nvidia_device_handle device,
 }
 
 int
+nvidia_rm_gpu_get_engines(nvidia_device_handle device,
+			  uint32_t *engine_list, uint32_t *count_inout)
+{
+	NV2080_CTRL_GPU_GET_ENGINES_V2_PARAMS p;
+	int ret;
+	uint32_t i, n;
+
+	if (!device || !count_inout)
+		return -EINVAL;
+	if (!device->rm_subdevice_allocated)
+		return -ENODEV;
+
+	memset(&p, 0, sizeof(p));
+	ret = nvidia_rm_control_raw(device->fd_ctl, device->h_client,
+				    device->h_subdevice,
+				    NV2080_CTRL_CMD_GPU_GET_ENGINES_V2,
+				    &p, sizeof(p));
+	if (ret != 0)
+		return ret;
+
+	n = p.engineCount;
+	if (n > NV2080_GPU_MAX_ENGINES_LIST_SIZE)
+		n = NV2080_GPU_MAX_ENGINES_LIST_SIZE;
+	if (engine_list) {
+		uint32_t copy = n;
+		if (copy > *count_inout)
+			copy = *count_inout;
+		for (i = 0; i < copy; i++)
+			engine_list[i] = p.engineList[i];
+	}
+	*count_inout = n;
+	return 0;
+}
+
+int
+nvidia_rm_gpu_get_engine_classlist(nvidia_device_handle device,
+				   uint32_t engine_type,
+				   uint32_t *class_list,
+				   uint32_t *count_inout)
+{
+	NV2080_CTRL_GPU_GET_ENGINE_CLASSLIST_PARAMS p;
+	int ret;
+	uint32_t i, n;
+
+	if (!device || !count_inout)
+		return -EINVAL;
+	if (!device->rm_subdevice_allocated)
+		return -ENODEV;
+
+	memset(&p, 0, sizeof(p));
+	p.engineType = engine_type;
+	p.numClasses = NV2080_CTRL_GPU_MAX_CLASSLIST;
+	ret = nvidia_rm_control_raw(device->fd_ctl, device->h_client,
+				    device->h_subdevice,
+				    NV2080_CTRL_CMD_GPU_GET_ENGINE_CLASSLIST,
+				    &p, sizeof(p));
+	if (ret != 0)
+		return ret;
+
+	n = p.numClasses;
+	if (n > NV2080_CTRL_GPU_MAX_CLASSLIST)
+		n = NV2080_CTRL_GPU_MAX_CLASSLIST;
+	if (class_list) {
+		uint32_t copy = n;
+		if (copy > *count_inout)
+			copy = *count_inout;
+		for (i = 0; i < copy; i++)
+			class_list[i] = p.classList[i];
+	}
+	*count_inout = n;
+	return 0;
+}
+
+uint32_t
+nvidia_pick_class_in_range(const uint32_t *class_list, uint32_t count,
+			   uint32_t min_class, uint32_t max_class)
+{
+	uint32_t i, best = 0;
+
+	if (!class_list || !count)
+		return 0;
+	for (i = 0; i < count; i++) {
+		uint32_t c = class_list[i];
+		if (c < min_class || c > max_class)
+			continue;
+		if (c > best)
+			best = c;
+	}
+	return best;
+}
+
+int
 nvidia_rm_channel_group_schedule(nvidia_device_handle device,
 				 uint32_t h_channel_group,
 				 bool enable)
