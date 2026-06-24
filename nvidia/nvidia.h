@@ -546,6 +546,8 @@ nvidia_smoke_present_wait(volatile void *userd, uint32_t target_put,
 #define NVIDIA_SMOKE_G1_DST_GPU_DEFAULT   0x200000ull
 #define NVIDIA_SMOKE_G1_SEMA_GPU_DEFAULT  0x300000ull
 #define NVIDIA_SMOKE_G1_SIZE_DEFAULT      256u
+/* Fallback SET_OBJECT class when RM classlist not yet refined (mesa channel resolve) */
+#define NVIDIA_SMOKE_G1_CLASS_COPY_FALLBACK  0x0000c6b5u  /* AMPERE_DMA_COPY_A */
 
 /* G2 compute smoke (pairs with mesa nv_channel_g2_* / nv_smoke_selftest_g2_*) */
 #define NVIDIA_SMOKE_G2_PROG_GPU_DEFAULT  0x100000ull
@@ -553,12 +555,21 @@ nvidia_smoke_present_wait(volatile void *userd, uint32_t target_put,
 #define NVIDIA_SMOKE_G2_SEMA_GPU_DEFAULT  0x300000ull
 #define NVIDIA_SMOKE_G2_REGS_DEFAULT      16u
 #define NVIDIA_SMOKE_G2_SASS_DEFAULT      0x86u
+#define NVIDIA_SMOKE_G2_CLASS_COMPUTE_FALLBACK  0x0000c3c0u  /* VOLTA_COMPUTE_A */
+#define NVIDIA_SMOKE_G2_STORE_IMM_DEFAULT  0xdeadbeefu
 
 /* G3 3D clear/draw sema (pairs with mesa nv_channel_g3_* / nv_smoke_selftest_g3_*) */
 #define NVIDIA_SMOKE_G3_CT_GPU_DEFAULT    0x500000ull
 #define NVIDIA_SMOKE_G3_SEMA_GPU_DEFAULT  0x300000ull
 #define NVIDIA_SMOKE_G3_CT_W_DEFAULT      64u
 #define NVIDIA_SMOKE_G3_CT_H_DEFAULT      64u
+#define NVIDIA_SMOKE_G3_CLASS_3D_FALLBACK  0x0000c597u  /* TURING_A_3D_A */
+
+/**
+ * HW bring-up env (mesa nv_smoke_hw / nvrm_device):
+ *   NV_SMOKE_HW=1 NV_SMOKE_HW_SLICES=1 NV_SMOKE_HW_VERBOSE=1
+ * G1 first; then SLICES=3 (G1+G2) or 7 (all).  Read stderr nvrm_smoke_hw line.
+ */
 
 static inline int
 nvidia_smoke_g1_wait_complete(volatile void *userd, uint32_t target_put,
