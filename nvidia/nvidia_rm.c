@@ -7,6 +7,7 @@
  */
 
 #include <errno.h>
+#include <sched.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -1183,6 +1184,8 @@ nvidia_sema_wait_geq(volatile uint32_t *sema_cpu, uint32_t payload,
 			 (uint64_t)ts.tv_nsec;
 		if (now_ns >= deadline_ns)
 			return -ETIMEDOUT;
+		/* Brief yield so other threads / IRQ completion can progress */
+		sched_yield();
 	}
 }
 
