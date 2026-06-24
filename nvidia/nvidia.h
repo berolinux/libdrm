@@ -12,6 +12,7 @@
 #ifndef _NVIDIA_DRM_USER_H_
 #define _NVIDIA_DRM_USER_H_
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -106,6 +107,12 @@ struct nvidia_gpu_info {
 	uint32_t rm_pci_device_id;    /* BUS_GET_PCI_INFO pciDeviceId (vend|dev) */
 	uint32_t rm_pci_subsystem_id;
 	uint32_t rm_pci_revision_id;
+	/* tick98: NV0000 system probe (client-level; same for all GPUs on client) */
+	uint32_t rm_changelist;       /* SYSTEM_GET_BUILD_VERSION changelistNumber */
+	uint32_t rm_official_cl;      /* officialChangelistNumber */
+	uint32_t rm_platform_type;    /* SYSTEM_GET_PLATFORM_TYPE systemType */
+	char     rm_driver_version[64]; /* e.g. "610.43.02" when RM fills buffer */
+	char     rm_build_branch[64];
 	char     name[64];
 	char     short_name[16];
 	bool     valid;
@@ -545,6 +552,21 @@ int nvidia_rm_share_object(nvidia_device_handle device, uint32_t h_object,
  * Useful for export/FD paths that need explicit share policy.
  */
 int nvidia_rm_share_object_all_dup(nvidia_device_handle device, uint32_t h_object);
+
+/**
+ * tick98: NV0000_CTRL_CMD_SYSTEM_GET_BUILD_VERSION on client.
+ * Any output pointer may be NULL. Strings truncated to provided sizes.
+ */
+int nvidia_rm_system_get_build_version(nvidia_device_handle device,
+				       char *driver_ver_out, size_t driver_ver_sz,
+				       char *branch_out, size_t branch_sz,
+				       char *title_out, size_t title_sz,
+				       uint32_t *changelist_out,
+				       uint32_t *official_cl_out);
+
+/** NV0000_CTRL_CMD_SYSTEM_GET_PLATFORM_TYPE (desktop/mobile/etc). */
+int nvidia_rm_system_get_platform_type(nvidia_device_handle device,
+				       uint32_t *platform_type_out);
 
 /** Map physical/sysmem BO into a VASpace or CTXDMA (NVOS46 / MAP_MEMORY_DMA) */
 int nvidia_rm_map_memory_dma(nvidia_device_handle device,

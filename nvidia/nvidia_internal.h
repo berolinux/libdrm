@@ -245,6 +245,15 @@ int nvidia_rm_bus_get_pci_info_raw(int fd, NvHandle h_client, NvHandle h_subdevi
 uint32_t nvidia_rm_vaspace_normalize_big_page(uint64_t max_page_size);
 int nvidia_rm_share_object_raw(int fd, NvHandle h_client, NvHandle h_object,
 			       const RS_SHARE_POLICY *policy);
+/* tick98: client-level system probe (build version / platform) */
+int nvidia_rm_system_get_build_version_raw(int fd, NvHandle h_client,
+					   char *driver_ver_out, size_t driver_ver_sz,
+					   char *branch_out, size_t branch_sz,
+					   char *title_out, size_t title_sz,
+					   NvU32 *changelist_out,
+					   NvU32 *official_cl_out);
+int nvidia_rm_system_get_platform_type_raw(int fd, NvHandle h_client,
+					   NvU32 *platform_type_out);
 int nvidia_rm_export_object_to_fd_raw(int fd_ctl, NvHandle h_client,
 				      NvHandle h_device, NvHandle h_parent,
 				      NvHandle h_object, int *fd_inout,

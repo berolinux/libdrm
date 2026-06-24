@@ -382,6 +382,24 @@ nvidia_device_refresh_gpu_info(struct nvidia_device *dev, int gpu_index)
 		}
 	}
 
+	/* tick98: RM driver build/version (client object; non-fatal) */
+	{
+		NvU32 cl = 0, ocl = 0;
+		NvU32 plat = 0;
+
+		if (nvidia_rm_system_get_build_version_raw(
+			    dev->fd_ctl, dev->h_client,
+			    info->rm_driver_version, sizeof(info->rm_driver_version),
+			    info->rm_build_branch, sizeof(info->rm_build_branch),
+			    NULL, 0, &cl, &ocl) == 0) {
+			info->rm_changelist = cl;
+			info->rm_official_cl = ocl;
+		}
+		if (nvidia_rm_system_get_platform_type_raw(dev->fd_ctl, dev->h_client,
+							   &plat) == 0)
+			info->rm_platform_type = plat;
+	}
+
 	dev->gpu_info_valid[gpu_index] = true;
 	return 0;
 }
@@ -1269,6 +1287,43 @@ nvidia_rm_share_object_all_dup(nvidia_device_handle device, uint32_t h_object)
 	pol.target = 0;
 	pol.access_mask_limb0 = (1u << NVIDIA_RS_ACCESS_DUP_OBJECT);
 	return nvidia_rm_share_object(device, h_object, &pol);
+}
+
+int
+nvidia_rm_system_get_build_version(nvidia_device_handle device,
+				   char *driver_ver_out, size_t driver_ver_sz,
+				   char *branch_out, size_t branch_sz,
+				   char *title_out, size_t title_sz,
+				   uint32_t *changelist_out,
+				   uint32_t *official_cl_out)
+{
+	NvU32 cl = 0, ocl = 0;
+	int ret;
+
+	if (!device)
+		return -EINVAL;
+	ret = nvidia_rm_system_get_build_version_raw(
+		device->fd_ctl, device->h_client,
+		driver_ver_out, driver_ver_sz, branch_out, branch_sz,
+		title_out, title_sz, &cl, &ocl);
+	if (ret != 0)
+		return ret;
+	if (changelist_out)
+		*changelist_out = cl;
+	if (official_cl_out)
+		*official_cl_out = ocl;
+	return 0;
+}
+
+int
+nvidia_rm_system_get_platform_type(nvidia_device_handle device,
+				   uint32_t *platform_type_out)
+{
+	if (!device || !platform_type_out)
+		return -EINVAL;
+	return nvidia_rm_system_get_platform_type_raw(device->fd_ctl,
+						      device->h_client,
+						      platform_type_out);
 }
 
 int

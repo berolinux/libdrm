@@ -1092,6 +1092,100 @@ nvidia_rm_share_object_raw(int fd, NvHandle h_client, NvHandle h_object,
 	return 0;
 }
 
+/*
+ * tick98: NV0000_CTRL_CMD_SYSTEM_GET_BUILD_VERSION on client handle.
+ * Two-phase: first get sizeOfStrings, then pass user buffers (optional).
+ * changelist fields are always filled when the call succeeds.
+ */
+int
+nvidia_rm_system_get_build_version_raw(int fd, NvHandle h_client,
+				       char *driver_ver_out, size_t driver_ver_sz,
+				       char *branch_out, size_t branch_sz,
+				       char *title_out, size_t title_sz,
+				       NvU32 *changelist_out,
+				       NvU32 *official_cl_out)
+{
+	NV0000_CTRL_SYSTEM_GET_BUILD_VERSION_PARAMS params;
+	char drv_buf[NV0000_CTRL_SYSTEM_BUILD_STRING_MAX];
+	char ver_buf[NV0000_CTRL_SYSTEM_BUILD_STRING_MAX];
+	char tit_buf[NV0000_CTRL_SYSTEM_BUILD_STRING_MAX];
+	int ret;
+	NvU32 need;
+
+	if (!h_client)
+		return -EINVAL;
+
+	memset(&params, 0, sizeof(params));
+	/* Phase 1: ask for required string size (may succeed with only CL fields) */
+	ret = nvidia_rm_control_raw(fd, h_client, h_client,
+				    NV0000_CTRL_CMD_SYSTEM_GET_BUILD_VERSION,
+				    &params, sizeof(params));
+	if (ret != 0)
+		return ret;
+
+	if (changelist_out)
+		*changelist_out = params.changelistNumber;
+	if (official_cl_out)
+		*official_cl_out = params.officialChangelistNumber;
+
+	need = params.sizeOfStrings;
+	if (need == 0 || need > NV0000_CTRL_SYSTEM_BUILD_STRING_MAX)
+		need = NV0000_CTRL_SYSTEM_BUILD_STRING_MAX;
+
+	/* Phase 2: fetch strings when caller wants any */
+	if (driver_ver_out || branch_out || title_out) {
+		memset(drv_buf, 0, sizeof(drv_buf));
+		memset(ver_buf, 0, sizeof(ver_buf));
+		memset(tit_buf, 0, sizeof(tit_buf));
+		memset(&params, 0, sizeof(params));
+		params.sizeOfStrings = need;
+		params.pDriverVersionBuffer = (NvU64)(uintptr_t)drv_buf;
+		params.pVersionBuffer = (NvU64)(uintptr_t)ver_buf;
+		params.pTitleBuffer = (NvU64)(uintptr_t)tit_buf;
+		ret = nvidia_rm_control_raw(fd, h_client, h_client,
+					    NV0000_CTRL_CMD_SYSTEM_GET_BUILD_VERSION,
+					    &params, sizeof(params));
+		if (ret != 0)
+			return ret;
+		if (changelist_out)
+			*changelist_out = params.changelistNumber;
+		if (official_cl_out)
+			*official_cl_out = params.officialChangelistNumber;
+		if (driver_ver_out && driver_ver_sz) {
+			strncpy(driver_ver_out, drv_buf, driver_ver_sz - 1);
+			driver_ver_out[driver_ver_sz - 1] = '\0';
+		}
+		if (branch_out && branch_sz) {
+			strncpy(branch_out, ver_buf, branch_sz - 1);
+			branch_out[branch_sz - 1] = '\0';
+		}
+		if (title_out && title_sz) {
+			strncpy(title_out, tit_buf, title_sz - 1);
+			title_out[title_sz - 1] = '\0';
+		}
+	}
+	return 0;
+}
+
+int
+nvidia_rm_system_get_platform_type_raw(int fd, NvHandle h_client,
+				       NvU32 *platform_type_out)
+{
+	NV0000_CTRL_CMD_SYSTEM_GET_PLATFORM_TYPE_PARAMS params;
+	int ret;
+
+	if (!h_client || !platform_type_out)
+		return -EINVAL;
+	memset(&params, 0, sizeof(params));
+	ret = nvidia_rm_control_raw(fd, h_client, h_client,
+				    NV0000_CTRL_CMD_SYSTEM_GET_PLATFORM_TYPE,
+				    &params, sizeof(params));
+	if (ret != 0)
+		return ret;
+	*platform_type_out = params.systemType;
+	return 0;
+}
+
 int
 nvidia_rm_map_memory_dma_raw(int fd, NvHandle h_client, NvHandle h_device,
 			     NvHandle h_dma, NvHandle h_memory,
