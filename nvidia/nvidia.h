@@ -364,6 +364,39 @@ int nvidia_rm_gpfifo_get_context_id(nvidia_device_handle device,
 				    uint32_t h_channel,
 				    uint32_t *context_id_out);
 
+/**
+ * A06F SET_ERROR_NOTIFIER (0xa06f0108): attach/refresh channel error notifier
+ * policy.  notify_each_channel_in_tsg mirrors bNotifyEachChannelInTSG.
+ */
+int nvidia_rm_gpfifo_set_error_notifier(nvidia_device_handle device,
+					uint32_t h_channel,
+					bool notify_each_channel_in_tsg);
+
+/**
+ * tick91: KEPLER_CHANNEL_GROUP_A (A06C) TSG management (target h_channel_group).
+ * Used by multi-channel / CUDA-style groups; GL often uses single channel (A06F).
+ */
+int nvidia_rm_tsg_set_timeslice(nvidia_device_handle device,
+				uint32_t h_channel_group,
+				uint64_t timeslice_us);
+int nvidia_rm_tsg_get_timeslice(nvidia_device_handle device,
+				uint32_t h_channel_group,
+				uint64_t *timeslice_us_out);
+/** PREEMPT: wait=true blocks until preempt completes (or RM timeout). */
+int nvidia_rm_tsg_preempt(nvidia_device_handle device, uint32_t h_channel_group,
+			  bool wait, bool manual_timeout, uint32_t timeout_us);
+int nvidia_rm_tsg_get_info(nvidia_device_handle device, uint32_t h_channel_group,
+			   uint32_t *tsg_id_out);
+int nvidia_rm_tsg_set_interleave_level(nvidia_device_handle device,
+				       uint32_t h_channel_group,
+				       uint32_t tsg_interleave_level);
+int nvidia_rm_tsg_get_interleave_level(nvidia_device_handle device,
+				       uint32_t h_channel_group,
+				       uint32_t *tsg_interleave_level_out);
+/** MAKE_REALTIME: privileged; best-effort (may fail for unprivileged clients). */
+int nvidia_rm_tsg_make_realtime(nvidia_device_handle device,
+				uint32_t h_channel_group, bool realtime);
+
 /** Get work submit token for doorbell (Volta+; NVC36F_CTRL_CMD_GPFIFO_GET_WORK_SUBMIT_TOKEN) */
 int nvidia_rm_gpfifo_get_work_submit_token(nvidia_device_handle device,
 					   uint32_t h_channel,

@@ -831,10 +831,21 @@ typedef struct {
 #define NVA06C_CTRL_CMD_BIND             0xa06c0102
 #define NVA06C_CTRL_CMD_SET_TIMESLICE    0xa06c0103  /* pass5 imm; not GET_INTERLEAVE */
 #define NVA06C_CTRL_CMD_GET_TIMESLICE    0xa06c0104
+/* tick91: remaining A06C GPFIFO/TSG controls (ctrla06c.h; cuda/gl recovery paths) */
+#define NVA06C_CTRL_CMD_PREEMPT              0xa06c0105
+#define NVA06C_CTRL_CMD_GET_INFO             0xa06c0106
+#define NVA06C_CTRL_CMD_SET_INTERLEAVE_LEVEL 0xa06c0107
+#define NVA06C_CTRL_CMD_GET_INTERLEAVE_LEVEL 0xa06c0108
+#define NVA06C_CTRL_CMD_MAKE_REALTIME        0xa06c0110
+#define NVA06C_CTRL_CMD_PREEMPT_MAX_MANUAL_TIMEOUT_US 1000000u
+#define NVA06C_CTRL_INTERLEAVE_LEVEL_LOW     0x00000000u
+#define NVA06C_CTRL_INTERLEAVE_LEVEL_MEDIUM  0x00000001u
+#define NVA06C_CTRL_INTERLEAVE_LEVEL_HIGH    0x00000002u
 
 typedef struct {
 	NvBool bEnable;
 	NvBool bSkipSubmit;
+	NvBool bSkipEnable; /* pass9: mirror A06F schedule layout when present */
 } NVA06C_CTRL_GPFIFO_SCHEDULE_PARAMS;
 
 typedef struct {
@@ -847,6 +858,27 @@ typedef struct {
 
 typedef NVA06C_CTRL_TIMESLICE_PARAMS NVA06C_CTRL_SET_TIMESLICE_PARAMS;
 typedef NVA06C_CTRL_TIMESLICE_PARAMS NVA06C_CTRL_GET_TIMESLICE_PARAMS;
+
+typedef struct {
+	NvBool bWait;
+	NvBool bManualTimeout;
+	NvU32  timeoutUs;
+} NVA06C_CTRL_PREEMPT_PARAMS;
+
+typedef struct {
+	NvU32 tsgID;
+} NVA06C_CTRL_GET_INFO_PARAMS;
+
+typedef struct {
+	NvU32 tsgInterleaveLevel;
+} NVA06C_CTRL_INTERLEAVE_LEVEL_PARAMS;
+
+typedef NVA06C_CTRL_INTERLEAVE_LEVEL_PARAMS NVA06C_CTRL_SET_INTERLEAVE_LEVEL_PARAMS;
+typedef NVA06C_CTRL_INTERLEAVE_LEVEL_PARAMS NVA06C_CTRL_GET_INTERLEAVE_LEVEL_PARAMS;
+
+typedef struct {
+	NvBool bRealtime;
+} NVA06C_CTRL_MAKE_REALTIME_PARAMS;
 
 /* Per-channel A06F BIND (OGKM ctrla06fgpfifo.h; engine bind before schedule) */
 #define NVA06F_CTRL_CMD_BIND             0xa06f0104

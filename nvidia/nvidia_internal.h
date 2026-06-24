@@ -134,6 +134,29 @@ int nvidia_rm_gpfifo_stop_channel_raw(int fd, NvHandle h_client,
 int nvidia_rm_gpfifo_get_context_id_raw(int fd, NvHandle h_client,
 					NvHandle h_channel,
 					NvU32 *context_id_out);
+/* tick91: A06F SET_ERROR_NOTIFIER (0xa06f0108) */
+int nvidia_rm_gpfifo_set_error_notifier_raw(int fd, NvHandle h_client,
+					    NvHandle h_channel,
+					    NvBool notify_each_channel_in_tsg);
+/* tick91: A06C TSG controls (target = h_channel_group, not channel) */
+int nvidia_rm_tsg_set_timeslice_raw(int fd, NvHandle h_client,
+				    NvHandle h_channel_group, NvU64 timeslice_us);
+int nvidia_rm_tsg_get_timeslice_raw(int fd, NvHandle h_client,
+				    NvHandle h_channel_group,
+				    NvU64 *timeslice_us_out);
+int nvidia_rm_tsg_preempt_raw(int fd, NvHandle h_client,
+			      NvHandle h_channel_group, NvBool wait,
+			      NvBool manual_timeout, NvU32 timeout_us);
+int nvidia_rm_tsg_get_info_raw(int fd, NvHandle h_client,
+			       NvHandle h_channel_group, NvU32 *tsg_id_out);
+int nvidia_rm_tsg_set_interleave_level_raw(int fd, NvHandle h_client,
+					   NvHandle h_channel_group,
+					   NvU32 tsg_interleave_level);
+int nvidia_rm_tsg_get_interleave_level_raw(int fd, NvHandle h_client,
+					   NvHandle h_channel_group,
+					   NvU32 *tsg_interleave_level_out);
+int nvidia_rm_tsg_make_realtime_raw(int fd, NvHandle h_client,
+				    NvHandle h_channel_group, NvBool realtime);
 int nvidia_rm_gpfifo_get_work_submit_token_raw(int fd, NvHandle h_client,
 					       NvHandle h_channel,
 					       NvU32 *token_out);

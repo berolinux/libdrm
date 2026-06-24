@@ -601,6 +601,130 @@ nvidia_rm_gpfifo_get_context_id_raw(int fd, NvHandle h_client,
 	return ret;
 }
 
+/* tick91: A06F SET_ERROR_NOTIFIER (0xa06f0108; pass8 cuda-primary in imm scan) */
+int
+nvidia_rm_gpfifo_set_error_notifier_raw(int fd, NvHandle h_client,
+					NvHandle h_channel,
+					NvBool notify_each_channel_in_tsg)
+{
+	NVA06F_CTRL_SET_ERROR_NOTIFIER_PARAMS params;
+
+	memset(&params, 0, sizeof(params));
+	params.bNotifyEachChannelInTSG = notify_each_channel_in_tsg;
+	return nvidia_rm_control_raw(fd, h_client, h_channel,
+				     NVA06F_CTRL_CMD_SET_ERROR_NOTIFIER,
+				     &params, sizeof(params));
+}
+
+/* tick91: A06C TSG controls (ctrla06c.h; target = channel group handle) */
+int
+nvidia_rm_tsg_set_timeslice_raw(int fd, NvHandle h_client,
+				NvHandle h_channel_group, NvU64 timeslice_us)
+{
+	NVA06C_CTRL_SET_TIMESLICE_PARAMS params;
+
+	memset(&params, 0, sizeof(params));
+	params.timesliceUs = timeslice_us;
+	return nvidia_rm_control_raw(fd, h_client, h_channel_group,
+				     NVA06C_CTRL_CMD_SET_TIMESLICE,
+				     &params, sizeof(params));
+}
+
+int
+nvidia_rm_tsg_get_timeslice_raw(int fd, NvHandle h_client,
+				NvHandle h_channel_group,
+				NvU64 *timeslice_us_out)
+{
+	NVA06C_CTRL_GET_TIMESLICE_PARAMS params;
+	int ret;
+
+	memset(&params, 0, sizeof(params));
+	ret = nvidia_rm_control_raw(fd, h_client, h_channel_group,
+				    NVA06C_CTRL_CMD_GET_TIMESLICE,
+				    &params, sizeof(params));
+	if (ret == 0 && timeslice_us_out)
+		*timeslice_us_out = params.timesliceUs;
+	return ret;
+}
+
+int
+nvidia_rm_tsg_preempt_raw(int fd, NvHandle h_client, NvHandle h_channel_group,
+			  NvBool wait, NvBool manual_timeout, NvU32 timeout_us)
+{
+	NVA06C_CTRL_PREEMPT_PARAMS params;
+
+	memset(&params, 0, sizeof(params));
+	params.bWait = wait;
+	params.bManualTimeout = manual_timeout;
+	params.timeoutUs = timeout_us;
+	if (manual_timeout &&
+	    params.timeoutUs > NVA06C_CTRL_CMD_PREEMPT_MAX_MANUAL_TIMEOUT_US)
+		params.timeoutUs = NVA06C_CTRL_CMD_PREEMPT_MAX_MANUAL_TIMEOUT_US;
+	return nvidia_rm_control_raw(fd, h_client, h_channel_group,
+				     NVA06C_CTRL_CMD_PREEMPT,
+				     &params, sizeof(params));
+}
+
+int
+nvidia_rm_tsg_get_info_raw(int fd, NvHandle h_client, NvHandle h_channel_group,
+			   NvU32 *tsg_id_out)
+{
+	NVA06C_CTRL_GET_INFO_PARAMS params;
+	int ret;
+
+	memset(&params, 0, sizeof(params));
+	ret = nvidia_rm_control_raw(fd, h_client, h_channel_group,
+				    NVA06C_CTRL_CMD_GET_INFO,
+				    &params, sizeof(params));
+	if (ret == 0 && tsg_id_out)
+		*tsg_id_out = params.tsgID;
+	return ret;
+}
+
+int
+nvidia_rm_tsg_set_interleave_level_raw(int fd, NvHandle h_client,
+				       NvHandle h_channel_group,
+				       NvU32 tsg_interleave_level)
+{
+	NVA06C_CTRL_SET_INTERLEAVE_LEVEL_PARAMS params;
+
+	memset(&params, 0, sizeof(params));
+	params.tsgInterleaveLevel = tsg_interleave_level;
+	return nvidia_rm_control_raw(fd, h_client, h_channel_group,
+				     NVA06C_CTRL_CMD_SET_INTERLEAVE_LEVEL,
+				     &params, sizeof(params));
+}
+
+int
+nvidia_rm_tsg_get_interleave_level_raw(int fd, NvHandle h_client,
+				       NvHandle h_channel_group,
+				       NvU32 *tsg_interleave_level_out)
+{
+	NVA06C_CTRL_GET_INTERLEAVE_LEVEL_PARAMS params;
+	int ret;
+
+	memset(&params, 0, sizeof(params));
+	ret = nvidia_rm_control_raw(fd, h_client, h_channel_group,
+				    NVA06C_CTRL_CMD_GET_INTERLEAVE_LEVEL,
+				    &params, sizeof(params));
+	if (ret == 0 && tsg_interleave_level_out)
+		*tsg_interleave_level_out = params.tsgInterleaveLevel;
+	return ret;
+}
+
+int
+nvidia_rm_tsg_make_realtime_raw(int fd, NvHandle h_client,
+				NvHandle h_channel_group, NvBool realtime)
+{
+	NVA06C_CTRL_MAKE_REALTIME_PARAMS params;
+
+	memset(&params, 0, sizeof(params));
+	params.bRealtime = realtime;
+	return nvidia_rm_control_raw(fd, h_client, h_channel_group,
+				     NVA06C_CTRL_CMD_MAKE_REALTIME,
+				     &params, sizeof(params));
+}
+
 int
 nvidia_rm_gpfifo_get_work_submit_token_raw(int fd, NvHandle h_client,
 					   NvHandle h_channel,

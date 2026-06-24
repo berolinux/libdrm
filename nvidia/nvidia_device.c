@@ -925,6 +925,98 @@ nvidia_rm_gpfifo_get_context_id(nvidia_device_handle device, uint32_t h_channel,
 }
 
 int
+nvidia_rm_gpfifo_set_error_notifier(nvidia_device_handle device,
+				    uint32_t h_channel,
+				    bool notify_each_channel_in_tsg)
+{
+	if (!device || !h_channel)
+		return -EINVAL;
+	return nvidia_rm_gpfifo_set_error_notifier_raw(
+		device->fd_ctl, device->h_client, h_channel,
+		notify_each_channel_in_tsg ? NV_TRUE : NV_FALSE);
+}
+
+int
+nvidia_rm_tsg_set_timeslice(nvidia_device_handle device,
+			     uint32_t h_channel_group, uint64_t timeslice_us)
+{
+	if (!device || !h_channel_group)
+		return -EINVAL;
+	return nvidia_rm_tsg_set_timeslice_raw(device->fd_ctl, device->h_client,
+					       h_channel_group, timeslice_us);
+}
+
+int
+nvidia_rm_tsg_get_timeslice(nvidia_device_handle device,
+			     uint32_t h_channel_group,
+			     uint64_t *timeslice_us_out)
+{
+	if (!device || !h_channel_group)
+		return -EINVAL;
+	return nvidia_rm_tsg_get_timeslice_raw(device->fd_ctl, device->h_client,
+					       h_channel_group,
+					       timeslice_us_out);
+}
+
+int
+nvidia_rm_tsg_preempt(nvidia_device_handle device, uint32_t h_channel_group,
+		       bool wait, bool manual_timeout, uint32_t timeout_us)
+{
+	if (!device || !h_channel_group)
+		return -EINVAL;
+	return nvidia_rm_tsg_preempt_raw(device->fd_ctl, device->h_client,
+					 h_channel_group,
+					 wait ? NV_TRUE : NV_FALSE,
+					 manual_timeout ? NV_TRUE : NV_FALSE,
+					 timeout_us);
+}
+
+int
+nvidia_rm_tsg_get_info(nvidia_device_handle device, uint32_t h_channel_group,
+			uint32_t *tsg_id_out)
+{
+	if (!device || !h_channel_group)
+		return -EINVAL;
+	return nvidia_rm_tsg_get_info_raw(device->fd_ctl, device->h_client,
+					  h_channel_group, tsg_id_out);
+}
+
+int
+nvidia_rm_tsg_set_interleave_level(nvidia_device_handle device,
+				    uint32_t h_channel_group,
+				    uint32_t tsg_interleave_level)
+{
+	if (!device || !h_channel_group)
+		return -EINVAL;
+	return nvidia_rm_tsg_set_interleave_level_raw(
+		device->fd_ctl, device->h_client, h_channel_group,
+		tsg_interleave_level);
+}
+
+int
+nvidia_rm_tsg_get_interleave_level(nvidia_device_handle device,
+				    uint32_t h_channel_group,
+				    uint32_t *tsg_interleave_level_out)
+{
+	if (!device || !h_channel_group)
+		return -EINVAL;
+	return nvidia_rm_tsg_get_interleave_level_raw(
+		device->fd_ctl, device->h_client, h_channel_group,
+		tsg_interleave_level_out);
+}
+
+int
+nvidia_rm_tsg_make_realtime(nvidia_device_handle device,
+			     uint32_t h_channel_group, bool realtime)
+{
+	if (!device || !h_channel_group)
+		return -EINVAL;
+	return nvidia_rm_tsg_make_realtime_raw(device->fd_ctl, device->h_client,
+					       h_channel_group,
+					       realtime ? NV_TRUE : NV_FALSE);
+}
+
+int
 nvidia_rm_gpfifo_get_work_submit_token(nvidia_device_handle device,
 				       uint32_t h_channel, uint32_t *token_out)
 {
