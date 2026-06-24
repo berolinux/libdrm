@@ -410,3 +410,27 @@ int nvidia_rm_ctxshare_alloc(nvidia_device_handle device,
 int nvidia_rm_channel_group_schedule(nvidia_device_handle device,
 				     uint32_t h_channel_group,
 				     bool enable);
+
+/**
+ * GPFIFO submit helper: write one entry into a host-mapped GPFIFO ring,
+ * advance put index, write USERD GPPut, optional doorbell ring.
+ * gpfifo_cpu: host pointer to ring (2 dwords per entry)
+ * gpfifo_entries: ring capacity
+ * *gpfifo_put_inout: in/out next write index (wrapped)
+ * userd: mapped USERD control block (GPPut/GPGet)
+ * pb_gpu_addr / pb_dwords: pushbuffer segment to submit
+ * usermode_map / work_submit_token: Volta+ doorbell (map may be NULL)
+ * stall_timeout_ns: max wait if ring full (0 = no wait, return -EAGAIN)
+ */
+int nvidia_gpfifo_submit_one(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
+			     uint32_t *gpfifo_put_inout,
+			     volatile void *userd,
+			     uint64_t pb_gpu_addr, uint32_t pb_dwords,
+			     volatile void *usermode_map,
+			     uint32_t work_submit_token,
+			     bool has_work_submit_token,
+			     uint64_t stall_timeout_ns);
+
+/** Poll USERD until GPGet catches GPPut (or timeout). target_put = ring put index. */
+int nvidia_userd_wait_gpfifo_idle(volatile void *userd, uint32_t target_put,
+				  uint64_t timeout_ns);
