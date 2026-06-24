@@ -886,13 +886,20 @@ nvidia_gpfifo_submit_one(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 	nvidia_gp_entry_pack(entry, pb_gpu_addr, pb_dwords, false, false);
 	gpfifo_cpu[put_idx * 2 + 0] = entry[0];
 	gpfifo_cpu[put_idx * 2 + 1] = entry[1];
+	/* Ensure GPFIFO entry stores are globally visible before GPPut */
 	__sync_synchronize();
+#if defined(__x86_64__) || defined(__i386__)
+	__asm__ __volatile__("sfence" ::: "memory");
+#endif
 
 	*gpfifo_put_inout = next_put;
 	/* Publish GPPut then doorbell (order matters for Volta+ usermode kick) */
 	__sync_synchronize();
 	ud->GPPut = next_put;
 	__sync_synchronize();
+#if defined(__x86_64__) || defined(__i386__)
+	__asm__ __volatile__("sfence" ::: "memory");
+#endif
 
 	if (has_work_submit_token && usermode_map)
 		nvidia_rm_doorbell_ring(usermode_map, work_submit_token);
