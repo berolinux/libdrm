@@ -491,6 +491,34 @@ int nvidia_submit_wait_complete(volatile void *userd, uint32_t target_put,
 				volatile uint32_t *sema_cpu, uint32_t sema_payload,
 				volatile void *notifier, uint64_t timeout_ns);
 
+/**
+ * Host-only smoke constants / helpers for future nvidia-smoke tool and
+ * mesa trace-golden tests (no GPU required).
+ */
+#define NVIDIA_SMOKE_SEMA_PAYLOAD_DEFAULT  0x42u
+#define NVIDIA_SMOKE_QMD_BYTES             256
+#define NVIDIA_SMOKE_SPH_MIN_BYTES         256
+
+/** Reset sema dword to 0 before a smoke submit. */
+static inline void
+nvidia_smoke_sema_reset(volatile uint32_t *sema_cpu)
+{
+	if (sema_cpu)
+		sema_cpu[0] = 0;
+}
+
+/** After wait: true if sema_cpu[0] == expected (strict) or >= if allow_geq. */
+static inline bool
+nvidia_smoke_sema_check(volatile uint32_t *sema_cpu, uint32_t expected,
+			bool allow_geq)
+{
+	uint32_t v;
+	if (!sema_cpu)
+		return false;
+	v = sema_cpu[0];
+	return allow_geq ? (v >= expected) : (v == expected);
+}
+
 #define NVIDIA_MAX_ENGINES_LIST   84
 #define NVIDIA_MAX_ENGINE_CLASSES 128
 
