@@ -624,7 +624,9 @@ nvidia_rm_usermode_alloc_raw(int fd, NvHandle h_root, NvHandle h_subdevice,
 {
 	NvHandle h_um = 0;
 	int ret;
+	/* Newest-first (610.43.02 glcore/eglcore/glsi embed C761/C661/C361) */
 	static const NvV32 classes[] = {
+		BLACKWELL_USERMODE_A,
 		HOPPER_USERMODE_A,
 		VOLTA_USERMODE_A,
 	};
@@ -641,7 +643,9 @@ nvidia_rm_usermode_alloc_raw(int fd, NvHandle h_root, NvHandle h_subdevice,
 		void *parms = NULL;
 		uint32_t parms_size = 0;
 
-		if (classes[i] == HOPPER_USERMODE_A) {
+		/* Hopper+ alloc may take optional params; Volta/Blackwell try NULL first */
+		if (classes[i] == HOPPER_USERMODE_A ||
+		    classes[i] == BLACKWELL_USERMODE_A) {
 			memset(&hp, 0, sizeof(hp));
 			parms = &hp;
 			parms_size = sizeof(hp);
@@ -650,6 +654,13 @@ nvidia_rm_usermode_alloc_raw(int fd, NvHandle h_root, NvHandle h_subdevice,
 		h_um = *h_usermode_out ? *h_usermode_out : 0;
 		ret = nvidia_rm_alloc_raw(fd, h_root, h_subdevice, &h_um,
 					  classes[i], parms, parms_size);
+		if (ret != 0 && (classes[i] == HOPPER_USERMODE_A ||
+				 classes[i] == BLACKWELL_USERMODE_A)) {
+			/* Retry without params block if RM rejects Hopper-style args */
+			h_um = *h_usermode_out ? *h_usermode_out : 0;
+			ret = nvidia_rm_alloc_raw(fd, h_root, h_subdevice, &h_um,
+						  classes[i], NULL, 0);
+		}
 		if (ret == 0) {
 			*h_usermode_out = h_um;
 			if (h_class_out)

@@ -779,6 +779,8 @@ typedef struct {
 #define FERMI_VASPACE_A                 0x000090f1
 #define VOLTA_USERMODE_A                0x0000c361
 #define HOPPER_USERMODE_A               0x0000c661
+/* 610.43.02 binaries also reference 0xC761 (Blackwell-era usermode ladder) */
+#define BLACKWELL_USERMODE_A            0x0000c761
 #define NVC361_NV_USERMODE__SIZE        65536
 #define NVC361_NOTIFY_CHANNEL_PENDING   0x00000090
 
