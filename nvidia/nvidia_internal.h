@@ -177,6 +177,18 @@ int nvidia_gpfifo_submit_one_ex(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 				bool has_work_submit_token,
 				uint32_t gpfifo_class,
 				uint64_t stall_timeout_ns);
+int nvidia_gpfifo_submit_one_multi(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
+				   uint32_t *gpfifo_put_inout,
+				   volatile void *const *userd_maps,
+				   unsigned userd_count,
+				   uint64_t pb_gpu_addr, uint32_t pb_dwords,
+				   volatile void *usermode_map,
+				   volatile void *const *usermode_maps,
+				   unsigned usermode_count,
+				   uint32_t work_submit_token,
+				   bool has_work_submit_token,
+				   uint32_t gpfifo_class,
+				   uint64_t stall_timeout_ns);
 int nvidia_userd_wait_gpfifo_idle(volatile void *userd, uint32_t target_put,
 				  uint64_t timeout_ns);
 int nvidia_userd_read_gpfifo(volatile void *userd,

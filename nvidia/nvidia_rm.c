@@ -890,37 +890,57 @@ nvidia_gpfifo_class_needs_doorbell(uint32_t gpfifo_class)
  * Host-side GPFIFO ring submit: mirrors mesa nv_channel_kickoff and 610.43.02
  * glcore@ac5540 kick order:
  *   1) write ring entry (pb VA + length@bits30:10)
- *   2) USERD.GPPut @ +0x8c  (caller supplies one USERD; multi-USERD is mesa's job)
+ *   2) USERD.GPPut @ +0x8c  (all mapped USERDs — multi via submit_one_multi)
  *   3) if class > C36E and token+map: sfence; usermode+0x90 = work_submit_token
  *
  * gpfifo_class==0: unknown class — ring doorbell whenever token+map provided.
  * gpfifo_class<=0xC36E: GPPut-only (legacy path; no doorbell).
+ *
+ * Stall/full-ring check uses the first USERD (userd_maps[0] / userd).
  */
 int
-nvidia_gpfifo_submit_one_ex(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
-			    uint32_t *gpfifo_put_inout,
-			    volatile void *userd,
-			    uint64_t pb_gpu_addr, uint32_t pb_dwords,
-			    volatile void *usermode_map,
-			    uint32_t work_submit_token,
-			    bool has_work_submit_token,
-			    uint32_t gpfifo_class,
-			    uint64_t stall_timeout_ns)
+nvidia_gpfifo_submit_one_multi(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
+			       uint32_t *gpfifo_put_inout,
+			       volatile void *const *userd_maps,
+			       unsigned userd_count,
+			       uint64_t pb_gpu_addr, uint32_t pb_dwords,
+			       volatile void *usermode_map,
+			       volatile void *const *usermode_maps,
+			       unsigned usermode_count,
+			       uint32_t work_submit_token,
+			       bool has_work_submit_token,
+			       uint32_t gpfifo_class,
+			       uint64_t stall_timeout_ns)
 {
-	volatile nvidia_userd_control_t *ud;
+	volatile nvidia_userd_control_t *ud_primary;
+	volatile void *first_userd = NULL;
 	uint32_t put_idx, next_put;
 	uint32_t entry[2];
 	struct timespec ts;
 	uint64_t start_ns = 0, now_ns, deadline_ns;
 	bool ring_doorbell;
+	unsigned i, n_userd, n_um;
 
-	if (!gpfifo_cpu || !gpfifo_put_inout || !userd || !gpfifo_entries ||
-	    !pb_dwords)
+	if (!gpfifo_cpu || !gpfifo_put_inout || !userd_maps || !userd_count ||
+	    !gpfifo_entries || !pb_dwords)
 		return -EINVAL;
 	if (pb_dwords > NV_GP_ENTRY1_LENGTH_MASK)
 		return -EINVAL;
 
-	ud = (volatile nvidia_userd_control_t *)userd;
+	n_userd = userd_count;
+	if (n_userd > NV_GP_MAX_USERD_SLOTS)
+		n_userd = NV_GP_MAX_USERD_SLOTS;
+
+	for (i = 0; i < n_userd; i++) {
+		if (userd_maps[i]) {
+			first_userd = userd_maps[i];
+			break;
+		}
+	}
+	if (!first_userd)
+		return -EINVAL;
+
+	ud_primary = (volatile nvidia_userd_control_t *)first_userd;
 	put_idx = *gpfifo_put_inout % gpfifo_entries;
 	next_put = (put_idx + 1) % gpfifo_entries;
 
@@ -934,7 +954,7 @@ nvidia_gpfifo_submit_one_ex(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 	}
 
 	/* Ring full when GPU has not consumed the slot we would overwrite */
-	while (ud->GPGet == next_put) {
+	while (ud_primary->GPGet == next_put) {
 		if (!stall_timeout_ns)
 			return -EAGAIN;
 		if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
@@ -958,23 +978,74 @@ nvidia_gpfifo_submit_one_ex(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 
 	*gpfifo_put_inout = next_put;
 
-	/* 2) Publish GPPut @ USERD+0x8c (glcore ac554c) */
+	/* 2) Publish GPPut @ USERD+0x8c on every mapped USERD (glcore ac5540 loop) */
 	__sync_synchronize();
-	ud->GPPut = next_put;
+	for (i = 0; i < n_userd; i++) {
+		volatile nvidia_userd_control_t *ud;
+
+		if (!userd_maps[i])
+			continue;
+		ud = (volatile nvidia_userd_control_t *)userd_maps[i];
+		ud->GPPut = next_put;
+	}
 
 	/* 3) Doorbell only for Turing+ GPFIFO (class > C36E) with token+usermode */
-	ring_doorbell = has_work_submit_token && usermode_map &&
+	ring_doorbell = has_work_submit_token &&
 			nvidia_gpfifo_class_needs_doorbell(gpfifo_class);
-	if (ring_doorbell) {
-		/* Match ac5585: sfence after GPPut, before usermode+0x90 write */
-		__sync_synchronize();
+	if (!ring_doorbell)
+		return 0;
+
+	/* Match ac5585: sfence after all GPPut stores, before usermode+0x90 */
+	__sync_synchronize();
 #if defined(__x86_64__) || defined(__i386__)
-		__asm__ __volatile__("sfence" ::: "memory");
+	__asm__ __volatile__("sfence" ::: "memory");
 #endif
+
+	n_um = usermode_count;
+	if (n_um > NV_GP_MAX_USERD_SLOTS)
+		n_um = NV_GP_MAX_USERD_SLOTS;
+
+	if (usermode_maps && n_um > 0) {
+		unsigned rang = 0;
+
+		for (i = 0; i < n_um; i++) {
+			if (!usermode_maps[i])
+				continue;
+			nvidia_rm_doorbell_ring(usermode_maps[i],
+						work_submit_token);
+			rang++;
+		}
+		/* Fall back to single map if multi array had only NULLs */
+		if (!rang && usermode_map)
+			nvidia_rm_doorbell_ring(usermode_map, work_submit_token);
+	} else if (usermode_map) {
 		nvidia_rm_doorbell_ring(usermode_map, work_submit_token);
 	}
 
 	return 0;
+}
+
+int
+nvidia_gpfifo_submit_one_ex(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
+			    uint32_t *gpfifo_put_inout,
+			    volatile void *userd,
+			    uint64_t pb_gpu_addr, uint32_t pb_dwords,
+			    volatile void *usermode_map,
+			    uint32_t work_submit_token,
+			    bool has_work_submit_token,
+			    uint32_t gpfifo_class,
+			    uint64_t stall_timeout_ns)
+{
+	volatile void *maps[1];
+
+	maps[0] = userd;
+	return nvidia_gpfifo_submit_one_multi(gpfifo_cpu, gpfifo_entries,
+					      gpfifo_put_inout, maps, 1,
+					      pb_gpu_addr, pb_dwords,
+					      usermode_map, NULL, 0,
+					      work_submit_token,
+					      has_work_submit_token,
+					      gpfifo_class, stall_timeout_ns);
 }
 
 int

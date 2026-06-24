@@ -733,6 +733,8 @@ typedef volatile struct {
 #define NV_GP_ENTRY1_SYNC_SHIFT         31  /* SYNC_WAIT: wait for prior PB segment */
 /* GPFIFO classes > this threshold use usermode doorbell (glcore ac5557) */
 #define NV_GP_DOORBELL_MIN_CLASS        0xc36f  /* first class strictly > 0xC36E */
+/* glcore@ac5526: multi-USERD / multi-doorbell loop upper bound (MIG / multi-subdevice) */
+#define NV_GP_MAX_USERD_SLOTS           9
 /* nvidia_gp_entry_pack flags (OR together) */
 #define NV_GP_ENTRY_F_PRIV              (1u << 0)  /* PRIV_KERNEL */
 #define NV_GP_ENTRY_F_LEVEL_SUBR        (1u << 1)  /* LEVEL_SUBROUTINE */

@@ -458,6 +458,33 @@ int nvidia_gpfifo_submit_one_ex(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 				uint32_t gpfifo_class,
 				uint64_t stall_timeout_ns);
 
+/**
+ * Pass7/glcore@ac5540 multi-USERD kick: write one ring entry, publish GPPut to
+ * every non-NULL USERD in userd_maps[0..userd_count-1] (max NV_GP_MAX_USERD_SLOTS),
+ * then one doorbell (or multi if usermode_maps provided).
+ *
+ * userd_maps: array of USERD host mappings (NULL slots skipped).
+ * userd_count: number of entries in userd_maps (clamped to NV_GP_MAX_USERD_SLOTS).
+ * usermode_maps: optional parallel array of usermode maps for multi-doorbell; if
+ *   NULL, only usermode_map (single) is rung when class needs doorbell.
+ * usermode_count: length of usermode_maps (0 = use single usermode_map only).
+ *
+ * If userd_count<=1 and userd_maps[0] (or userd_maps NULL with userd via maps[0]
+ * convention): pass userd_maps with one element, or use submit_one_ex instead.
+ */
+int nvidia_gpfifo_submit_one_multi(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
+				   uint32_t *gpfifo_put_inout,
+				   volatile void *const *userd_maps,
+				   unsigned userd_count,
+				   uint64_t pb_gpu_addr, uint32_t pb_dwords,
+				   volatile void *usermode_map,
+				   volatile void *const *usermode_maps,
+				   unsigned usermode_count,
+				   uint32_t work_submit_token,
+				   bool has_work_submit_token,
+				   uint32_t gpfifo_class,
+				   uint64_t stall_timeout_ns);
+
 /** Poll USERD until GPGet catches GPPut (or timeout). target_put = ring put index. */
 int nvidia_userd_wait_gpfifo_idle(volatile void *userd, uint32_t target_put,
 				  uint64_t timeout_ns);
