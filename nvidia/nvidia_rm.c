@@ -674,6 +674,26 @@ nvidia_rm_doorbell_ring(volatile void *usermode_map, NvU32 work_submit_token)
 	__sync_synchronize();
 }
 
+/*
+ * Host-side USERD init before first submit: zero control block so GPGet/GPPut
+ * and PB Put/Get start at 0 (RM may not clear sysmem USERD on alloc).
+ */
+void
+nvidia_userd_init_host(volatile void *userd, size_t userd_bytes)
+{
+	volatile nvidia_userd_control_t *ud;
+
+	if (!userd || userd_bytes < sizeof(nvidia_userd_control_t))
+		return;
+	memset((void *)userd, 0, userd_bytes);
+	ud = (volatile nvidia_userd_control_t *)userd;
+	ud->GPGet = 0;
+	ud->GPPut = 0;
+	ud->Put = 0;
+	ud->Get = 0;
+	__sync_synchronize();
+}
+
 int
 nvidia_rm_context_dma_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
 				NvHandle *h_ctxdma_out, NvV32 h_class,

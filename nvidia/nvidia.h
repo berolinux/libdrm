@@ -341,6 +341,9 @@ void nvidia_gp_entry_pack(uint32_t entry[2], uint64_t gpu_addr,
 void nvidia_gp_entry_pack_flags(uint32_t entry[2], uint64_t gpu_addr,
 				uint32_t length_dwords, uint32_t flags);
 
+/** Zero USERD (incl. GPGet/GPPut) before first GPFIFO submit; userd_bytes >= 0x90. */
+void nvidia_userd_init_host(volatile void *userd, size_t userd_bytes);
+
 /** Allocate FERMI_VASPACE_A on the device (private GPU VA space) */
 int nvidia_rm_vaspace_alloc(nvidia_device_handle device,
 			    uint32_t *h_vaspace_out,

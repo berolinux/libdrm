@@ -136,6 +136,7 @@ int nvidia_rm_unmap_memory_dma_raw(int fd, NvHandle h_client, NvHandle h_device,
 int nvidia_rm_usermode_alloc_raw(int fd, NvHandle h_root, NvHandle h_subdevice,
 				 NvHandle *h_usermode_out, NvV32 *h_class_out);
 void nvidia_rm_doorbell_ring(volatile void *usermode_map, NvU32 work_submit_token);
+void nvidia_userd_init_host(volatile void *userd, size_t userd_bytes);
 int nvidia_rm_context_dma_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
 				    NvHandle *h_ctxdma_out, NvV32 h_class,
 				    NvHandle h_subdevice, NvHandle h_memory,
