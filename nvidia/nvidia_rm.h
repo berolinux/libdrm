@@ -662,6 +662,11 @@ typedef struct {
 
 /* GPFIFO schedule control (Kepler+ channel class, works for later GPFIFO too) */
 #define NVA06F_CTRL_CMD_GPFIFO_SCHEDULE  0xa06f0103
+/* ctrla06fgpfifo.h — optional error notifier (TSG per-channel notify flag) */
+#define NVA06F_CTRL_CMD_SET_ERROR_NOTIFIER 0xa06f0108
+typedef struct {
+	NvBool bNotifyEachChannelInTSG;
+} NVA06F_CTRL_SET_ERROR_NOTIFIER_PARAMS;
 #define NVC36F_CTRL_CMD_GPFIFO_GET_WORK_SUBMIT_TOKEN 0xc36f0108
 /* Optional: set error-notifier slot for work_submit_token (ctrlc36f.h) */
 #define NVC36F_CTRL_CMD_GPFIFO_SET_WORK_SUBMIT_TOKEN_NOTIF_INDEX 0xc36f010a
