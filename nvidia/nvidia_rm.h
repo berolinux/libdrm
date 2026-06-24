@@ -164,12 +164,50 @@ typedef struct {
 #define NV2080_CTRL_CMD_MC_GET_ARCH_INFO            0x20801701
 #define NV2080_CTRL_CMD_FB_GET_INFO                 0x20801301
 #define NV2080_CTRL_CMD_FB_GET_INFO_V2              0x20801303
+#define NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO       0x20801320
 #define NV2080_CTRL_CMD_GR_GET_INFO                 0x20801201
 #define NV2080_CTRL_CMD_GR_GET_INFO_V2              0x20801210
 #define NV2080_CTRL_CMD_BUS_GET_INFO                0x20801801
 #define NV2080_CTRL_CMD_BUS_GET_INFO_V2             0x20801803
+/* BUS_GET_PCI_INFO shares 0x20801801 in OGKM as first bus cmd; keep BUS_GET_INFO alias */
+#define NV2080_CTRL_CMD_BUS_GET_PCI_INFO            0x20801801
+#define NV2080_CTRL_CMD_GPU_GET_MAX_SUPPORTED_PAGE_SIZE 0x20800188
 #define NV2080_CTRL_CMD_TIMER_GET_TIME              0x20800403
 #define NV2080_CTRL_CMD_EVENT_SET_NOTIFICATION      0x20800301
+
+/* tick96: FB region / page size / PCI (ctrl2080fb / gpu / bus) */
+#define NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_MEM_TYPES   18u
+#define NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_MAX_ENTRIES 16u
+
+typedef struct {
+	NvU64  base NV_ALIGN_BYTES(8);
+	NvU64  limit NV_ALIGN_BYTES(8);
+	NvU64  reserved NV_ALIGN_BYTES(8);
+	NvU32  performance;
+	NvBool supportCompressed;
+	NvBool supportISO;
+	NvBool bProtected;
+	NvBool blackList[NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_MEM_TYPES];
+	NvU32  regionTag; /* NV2080_FB_REGION_TAG; keep as NvU32 for portability */
+} NV2080_CTRL_CMD_FB_GET_FB_REGION_FB_REGION_INFO;
+
+typedef struct {
+	NvU32 numFBRegions;
+	NV2080_CTRL_CMD_FB_GET_FB_REGION_FB_REGION_INFO
+		fbRegion[NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_MAX_ENTRIES]
+		NV_ALIGN_BYTES(8);
+} NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_PARAMS;
+
+typedef struct {
+	NvU64 maxSupportedPageSize NV_ALIGN_BYTES(8);
+} NV2080_CTRL_GPU_GET_MAX_SUPPORTED_PAGE_SIZE_PARAMS;
+
+typedef struct {
+	NvU32 pciDeviceId;
+	NvU32 pciSubSystemId;
+	NvU32 pciRevisionId;
+	NvU32 pciExtDeviceId;
+} NV2080_CTRL_BUS_GET_PCI_INFO_PARAMS;
 
 /* tick95: timer + Unix object export/import (ctrl2080tmr / ctrl0000unix) */
 typedef struct {

@@ -98,6 +98,14 @@ struct nvidia_gpu_info {
 	uint32_t sm_version;
 	uint32_t gpc_count;
 	uint32_t tpc_count;
+	/* tick96: refined probe (FB regions / page size / PCI ids from RM) */
+	uint32_t fb_region_count;     /* NV2080 FB_GET_FB_REGION_INFO numFBRegions */
+	uint64_t fb_region0_base;     /* first region base (phys) */
+	uint64_t fb_region0_limit;    /* first region limit (phys, inclusive-style) */
+	uint64_t max_page_size;       /* GPU_GET_MAX_SUPPORTED_PAGE_SIZE */
+	uint32_t rm_pci_device_id;    /* BUS_GET_PCI_INFO pciDeviceId (vend|dev) */
+	uint32_t rm_pci_subsystem_id;
+	uint32_t rm_pci_revision_id;
 	char     name[64];
 	char     short_name[16];
 	bool     valid;
@@ -580,6 +588,25 @@ int nvidia_rm_memory_virtual_alloc(nvidia_device_handle device,
  */
 int nvidia_rm_timer_get_time(nvidia_device_handle device,
 			     uint64_t *time_nsec_out);
+
+/**
+ * tick96: FB region map (NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO) — up to 16 regions.
+ * Fills *num_regions_out and optionally copies first region base/limit.
+ */
+int nvidia_rm_fb_get_region_info(nvidia_device_handle device,
+				 uint32_t *num_regions_out,
+				 uint64_t *region0_base_out,
+				 uint64_t *region0_limit_out);
+
+/** GPU maximum supported page size (huge-page VAS alloc hints). */
+int nvidia_rm_gpu_get_max_page_size(nvidia_device_handle device,
+				    uint64_t *max_page_size_out);
+
+/** BUS_GET_PCI_INFO on subdevice (RM-internal PCI ids; complements CARD_INFO). */
+int nvidia_rm_bus_get_pci_info(nvidia_device_handle device,
+			       uint32_t *pci_device_id_out,
+			       uint32_t *pci_subsystem_id_out,
+			       uint32_t *pci_revision_id_out);
 
 /**
  * Export an RM object to a Unix FD (NV0000_CTRL_CMD_OS_UNIX_EXPORT_OBJECT_TO_FD).

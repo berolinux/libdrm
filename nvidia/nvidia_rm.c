@@ -1333,6 +1333,80 @@ nvidia_rm_timer_get_time_raw(int fd, NvHandle h_client, NvHandle h_subdevice,
 	return ret;
 }
 
+/* tick96: FB_GET_FB_REGION_INFO — physical FB layout / carveouts */
+int
+nvidia_rm_fb_get_region_info_raw(int fd, NvHandle h_client, NvHandle h_subdevice,
+				 NvU32 *num_regions_out,
+				 NvU64 *region0_base_out,
+				 NvU64 *region0_limit_out)
+{
+	NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_PARAMS params;
+	int ret;
+
+	if (!h_subdevice)
+		return -EINVAL;
+	memset(&params, 0, sizeof(params));
+	ret = nvidia_rm_control_raw(fd, h_client, h_subdevice,
+				    NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO,
+				    &params, sizeof(params));
+	if (ret != 0)
+		return ret;
+	if (num_regions_out)
+		*num_regions_out = params.numFBRegions;
+	if (params.numFBRegions > 0) {
+		if (region0_base_out)
+			*region0_base_out = params.fbRegion[0].base;
+		if (region0_limit_out)
+			*region0_limit_out = params.fbRegion[0].limit;
+	}
+	return 0;
+}
+
+int
+nvidia_rm_gpu_get_max_page_size_raw(int fd, NvHandle h_client,
+				    NvHandle h_subdevice,
+				    NvU64 *max_page_size_out)
+{
+	NV2080_CTRL_GPU_GET_MAX_SUPPORTED_PAGE_SIZE_PARAMS params;
+	int ret;
+
+	if (!h_subdevice)
+		return -EINVAL;
+	memset(&params, 0, sizeof(params));
+	ret = nvidia_rm_control_raw(fd, h_client, h_subdevice,
+				    NV2080_CTRL_CMD_GPU_GET_MAX_SUPPORTED_PAGE_SIZE,
+				    &params, sizeof(params));
+	if (ret == 0 && max_page_size_out)
+		*max_page_size_out = params.maxSupportedPageSize;
+	return ret;
+}
+
+int
+nvidia_rm_bus_get_pci_info_raw(int fd, NvHandle h_client, NvHandle h_subdevice,
+			       NvU32 *pci_device_id_out,
+			       NvU32 *pci_subsystem_id_out,
+			       NvU32 *pci_revision_id_out)
+{
+	NV2080_CTRL_BUS_GET_PCI_INFO_PARAMS params;
+	int ret;
+
+	if (!h_subdevice)
+		return -EINVAL;
+	memset(&params, 0, sizeof(params));
+	ret = nvidia_rm_control_raw(fd, h_client, h_subdevice,
+				    NV2080_CTRL_CMD_BUS_GET_PCI_INFO,
+				    &params, sizeof(params));
+	if (ret == 0) {
+		if (pci_device_id_out)
+			*pci_device_id_out = params.pciDeviceId;
+		if (pci_subsystem_id_out)
+			*pci_subsystem_id_out = params.pciSubSystemId;
+		if (pci_revision_id_out)
+			*pci_revision_id_out = params.pciRevisionId;
+	}
+	return ret;
+}
+
 /*
  * tick95: Export RM object to FD via NV0000_CTRL on client (h_client as object).
  * Kernel escape NV_ESC_RM_EXPORT_OBJECT_TO_FD uses the same params layout in some

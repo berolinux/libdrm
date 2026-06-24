@@ -343,6 +343,45 @@ nvidia_device_refresh_gpu_info(struct nvidia_device *dev, int gpu_index)
 		}
 	}
 
+	/* tick96: FB physical regions (non-fatal if unsupported on old RM) */
+	{
+		NvU32 nreg = 0;
+		NvU64 rbase = 0, rlim = 0;
+
+		if (nvidia_rm_fb_get_region_info_raw(dev->fd_ctl, dev->h_client,
+						     dev->h_subdevice, &nreg,
+						     &rbase, &rlim) == 0) {
+			info->fb_region_count = nreg;
+			info->fb_region0_base = rbase;
+			info->fb_region0_limit = rlim;
+			/* If FB size unset, derive from first region span */
+			if (!info->fb_size && rlim >= rbase)
+				info->fb_size = (rlim - rbase) + 1;
+		}
+	}
+
+	/* tick96: max supported page size (VAS / big-page hints) */
+	{
+		NvU64 mps = 0;
+
+		if (nvidia_rm_gpu_get_max_page_size_raw(dev->fd_ctl, dev->h_client,
+							dev->h_subdevice, &mps) == 0)
+			info->max_page_size = mps;
+	}
+
+	/* tick96: RM PCI ids (may differ encoding from CARD_INFO) */
+	{
+		NvU32 pdev = 0, psub = 0, prev = 0;
+
+		if (nvidia_rm_bus_get_pci_info_raw(dev->fd_ctl, dev->h_client,
+						   dev->h_subdevice, &pdev, &psub,
+						   &prev) == 0) {
+			info->rm_pci_device_id = pdev;
+			info->rm_pci_subsystem_id = psub;
+			info->rm_pci_revision_id = prev;
+		}
+	}
+
 	dev->gpu_info_valid[gpu_index] = true;
 	return 0;
 }
@@ -1360,6 +1399,48 @@ nvidia_rm_timer_get_time(nvidia_device_handle device, uint64_t *time_nsec_out)
 		return -EINVAL;
 	return nvidia_rm_timer_get_time_raw(device->fd_ctl, device->h_client,
 					    device->h_subdevice, time_nsec_out);
+}
+
+int
+nvidia_rm_fb_get_region_info(nvidia_device_handle device,
+			     uint32_t *num_regions_out,
+			     uint64_t *region0_base_out,
+			     uint64_t *region0_limit_out)
+{
+	if (!device || !device->h_subdevice)
+		return -EINVAL;
+	return nvidia_rm_fb_get_region_info_raw(device->fd_ctl, device->h_client,
+						device->h_subdevice,
+						num_regions_out,
+						region0_base_out,
+						region0_limit_out);
+}
+
+int
+nvidia_rm_gpu_get_max_page_size(nvidia_device_handle device,
+				uint64_t *max_page_size_out)
+{
+	if (!device || !device->h_subdevice)
+		return -EINVAL;
+	return nvidia_rm_gpu_get_max_page_size_raw(device->fd_ctl,
+						   device->h_client,
+						   device->h_subdevice,
+						   max_page_size_out);
+}
+
+int
+nvidia_rm_bus_get_pci_info(nvidia_device_handle device,
+			   uint32_t *pci_device_id_out,
+			   uint32_t *pci_subsystem_id_out,
+			   uint32_t *pci_revision_id_out)
+{
+	if (!device || !device->h_subdevice)
+		return -EINVAL;
+	return nvidia_rm_bus_get_pci_info_raw(device->fd_ctl, device->h_client,
+					      device->h_subdevice,
+					      pci_device_id_out,
+					      pci_subsystem_id_out,
+					      pci_revision_id_out);
 }
 
 int

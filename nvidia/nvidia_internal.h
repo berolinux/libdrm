@@ -229,6 +229,18 @@ int nvidia_rm_memory_virtual_alloc_raw(int fd, NvHandle h_root, NvHandle h_paren
 /* tick95: timer + export/import RM object via FD */
 int nvidia_rm_timer_get_time_raw(int fd, NvHandle h_client, NvHandle h_subdevice,
 				 NvU64 *time_nsec_out);
+/* tick96 */
+int nvidia_rm_fb_get_region_info_raw(int fd, NvHandle h_client, NvHandle h_subdevice,
+				     NvU32 *num_regions_out,
+				     NvU64 *region0_base_out,
+				     NvU64 *region0_limit_out);
+int nvidia_rm_gpu_get_max_page_size_raw(int fd, NvHandle h_client,
+					NvHandle h_subdevice,
+					NvU64 *max_page_size_out);
+int nvidia_rm_bus_get_pci_info_raw(int fd, NvHandle h_client, NvHandle h_subdevice,
+				   NvU32 *pci_device_id_out,
+				   NvU32 *pci_subsystem_id_out,
+				   NvU32 *pci_revision_id_out);
 int nvidia_rm_export_object_to_fd_raw(int fd_ctl, NvHandle h_client,
 				      NvHandle h_device, NvHandle h_parent,
 				      NvHandle h_object, int *fd_inout,
