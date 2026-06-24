@@ -519,6 +519,19 @@ nvidia_smoke_sema_check(volatile uint32_t *sema_cpu, uint32_t expected,
 	return allow_geq ? (v >= expected) : (v == expected);
 }
 
+/**
+ * Present/display gate: wait sema (if set) else USERD idle, then optional
+ * notifier peek.  Mirrors mesa WSI pre-present drain policy.
+ */
+static inline int
+nvidia_smoke_present_wait(volatile void *userd, uint32_t target_put,
+			  volatile uint32_t *sema_cpu, uint32_t sema_payload,
+			  volatile void *notifier, uint64_t timeout_ns)
+{
+	return nvidia_submit_wait_complete(userd, target_put, sema_cpu,
+					   sema_payload, notifier, timeout_ns);
+}
+
 #define NVIDIA_MAX_ENGINES_LIST   84
 #define NVIDIA_MAX_ENGINE_CLASSES 128
 
