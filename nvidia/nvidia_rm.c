@@ -670,6 +670,112 @@ nvidia_rm_doorbell_ring(volatile void *usermode_map, NvU32 work_submit_token)
 	*doorbell = work_submit_token;
 }
 
+int
+nvidia_rm_context_dma_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
+				NvHandle *h_ctxdma_out, NvV32 h_class,
+				NvHandle h_subdevice, NvHandle h_memory,
+				NvU64 offset, NvU64 limit, NvU32 flags)
+{
+	NV_CONTEXT_DMA_ALLOCATION_PARAMS cp;
+	NvHandle h_cd = 0;
+	int ret;
+
+	if (!h_ctxdma_out || !h_memory)
+		return -EINVAL;
+
+	memset(&cp, 0, sizeof(cp));
+	cp.hSubDevice = h_subdevice;
+	cp.flags = flags;
+	cp.hMemory = h_memory;
+	cp.offset = offset;
+	cp.limit = limit;
+
+	if (*h_ctxdma_out)
+		h_cd = *h_ctxdma_out;
+
+	ret = nvidia_rm_alloc_raw(fd, h_root, h_parent, &h_cd,
+				  h_class ? h_class : NV01_CONTEXT_ERROR_TO_MEMORY,
+				  &cp, sizeof(cp));
+	if (ret != 0)
+		return ret;
+	*h_ctxdma_out = h_cd;
+	return 0;
+}
+
+int
+nvidia_rm_channel_group_alloc_raw(int fd, NvHandle h_root, NvHandle h_device,
+				  NvHandle *h_group_out,
+				  NvHandle h_object_error,
+				  NvHandle h_vaspace,
+				  NvU32 engine_type)
+{
+	NV_CHANNEL_GROUP_ALLOCATION_PARAMETERS gp;
+	NvHandle h_grp = 0;
+	int ret;
+
+	if (!h_group_out)
+		return -EINVAL;
+
+	memset(&gp, 0, sizeof(gp));
+	gp.hObjectError = h_object_error;
+	gp.hObjectEccError = 0;
+	gp.hVASpace = h_vaspace;
+	gp.engineType = engine_type;
+	gp.bIsCallingContextVgpuPlugin = NV_FALSE;
+
+	if (*h_group_out)
+		h_grp = *h_group_out;
+
+	ret = nvidia_rm_alloc_raw(fd, h_root, h_device, &h_grp,
+				  KEPLER_CHANNEL_GROUP_A, &gp, sizeof(gp));
+	if (ret != 0)
+		return ret;
+	*h_group_out = h_grp;
+	return 0;
+}
+
+int
+nvidia_rm_ctxshare_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
+			     NvHandle *h_ctxshare_out,
+			     NvHandle h_vaspace, NvU32 flags)
+{
+	NV_CTXSHARE_ALLOCATION_PARAMETERS cp;
+	NvHandle h_cs = 0;
+	int ret;
+
+	if (!h_ctxshare_out)
+		return -EINVAL;
+
+	memset(&cp, 0, sizeof(cp));
+	cp.hVASpace = h_vaspace;
+	cp.flags = flags;
+	cp.subctxId = 0;
+
+	if (*h_ctxshare_out)
+		h_cs = *h_ctxshare_out;
+
+	ret = nvidia_rm_alloc_raw(fd, h_root, h_parent, &h_cs,
+				  FERMI_CONTEXT_SHARE_A, &cp, sizeof(cp));
+	if (ret != 0)
+		return ret;
+	*h_ctxshare_out = h_cs;
+	return 0;
+}
+
+int
+nvidia_rm_channel_group_schedule_raw(int fd, NvHandle h_client,
+				     NvHandle h_channel_group, NvBool enable)
+{
+	NVA06C_CTRL_GPFIFO_SCHEDULE_PARAMS params;
+
+	memset(&params, 0, sizeof(params));
+	params.bEnable = enable;
+	params.bSkipSubmit = NV_FALSE;
+	return nvidia_rm_control_raw(fd, h_client, h_channel_group,
+				     NVA06C_CTRL_CMD_GPFIFO_SCHEDULE,
+				     &params, sizeof(params));
+}
+
 void
 nvidia_gp_entry_pack(NvU32 entry[2], NvU64 gpu_addr, NvU32 length_dwords,
 		     bool wait, bool priv)

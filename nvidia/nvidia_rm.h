@@ -694,6 +694,48 @@ typedef volatile struct {
 #define NV01_CONTEXT_DMA_FROM_MEMORY    0x00000002
 #define NV01_CONTEXT_ERROR_TO_MEMORY    0x00000003
 #define NV_EVENT_BUFFER_CHANNEL         0x0000907e
+/* FERMI_CONTEXT_SHARE_A / KEPLER_CHANNEL_GROUP_A defined with class IDs below */
+
+/* NV_CONTEXT_DMA_ALLOCATION_PARAMS (nvos.h) - RmAlloc NV01_CONTEXT_DMA_* */
+typedef struct {
+	NvHandle hSubDevice;
+	NvV32    flags;
+	NvHandle hMemory;
+	NvU64    offset NV_ALIGN_BYTES(8);
+	NvU64    limit NV_ALIGN_BYTES(8);
+} NV_CONTEXT_DMA_ALLOCATION_PARAMS;
+
+/* NV_CHANNEL_GROUP_ALLOCATION_PARAMETERS (Kepler+ TSG) */
+typedef struct {
+	NvHandle hObjectError;
+	NvHandle hObjectEccError;
+	NvHandle hVASpace;
+	NvU32    engineType;
+	NvBool   bIsCallingContextVgpuPlugin;
+} NV_CHANNEL_GROUP_ALLOCATION_PARAMETERS;
+
+/* FERMI_CONTEXT_SHARE_A alloc params */
+typedef struct {
+	NvHandle hVASpace;
+	NvU32    flags;
+	NvU32    subctxId;
+} NV_CTXSHARE_ALLOCATION_PARAMETERS;
+
+#define NV_CTXSHARE_ALLOCATION_FLAGS_SUBCONTEXT_SYNC   0x00000000
+#define NV_CTXSHARE_ALLOCATION_FLAGS_SUBCONTEXT_ASYNC  0x00000001
+
+/* Channel group schedule (NVA06C_CTRL_CMD_GPFIFO_SCHEDULE) */
+#define NVA06C_CTRL_CMD_GPFIFO_SCHEDULE  0xa06c0101
+#define NVA06C_CTRL_CMD_BIND             0xa06c0102
+
+typedef struct {
+	NvBool bEnable;
+	NvBool bSkipSubmit;
+} NVA06C_CTRL_GPFIFO_SCHEDULE_PARAMS;
+
+typedef struct {
+	NvU32 engineType;
+} NVA06C_CTRL_BIND_PARAMS;
 
 /* VASpace / virtual memory / usermode doorbell (class headers + nvos.h) */
 #define FERMI_VASPACE_A                 0x000090f1
@@ -773,6 +815,18 @@ typedef struct {
 	NvU32 flags;
 	NvU32 bar1Mapping;
 } NV_HOPPER_USERMODE_A_PARAMS;
+
+/* NvNotification layout (error notifier memory, sdk/nvidia/inc/nvtypes.h subset) */
+typedef volatile struct {
+	NvU32 timeStamp_0;   /* nanoseconds low */
+	NvU32 timeStamp_1;   /* nanoseconds high */
+	NvU32 info32;        /* method / status info */
+	NvU16 info16;        /* additional status */
+	NvU16 status;        /* NV_OK when idle/cleared; non-zero = error pending */
+} nvidia_notification_t;
+
+#define NVIDIA_NOTIFICATION_STATUS_DONE_SUCCESS  0x0000
+#define NVIDIA_NOTIFICATION_STATUS_IN_PROGRESS   0xffff
 
 /* NV0000_CTRL_GPU_GET_ATTACHED_IDS params */
 #define NV0000_CTRL_GPU_MAX_ATTACHED_GPUS 32

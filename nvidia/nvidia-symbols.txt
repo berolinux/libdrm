@@ -44,3 +44,7 @@ nvidia_rm_map_memory_dma
 nvidia_rm_unmap_memory_dma
 nvidia_rm_usermode_alloc_map
 nvidia_rm_doorbell_ring
+nvidia_rm_context_dma_alloc
+nvidia_rm_channel_group_alloc
+nvidia_rm_ctxshare_alloc
+nvidia_rm_channel_group_schedule

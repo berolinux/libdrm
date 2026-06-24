@@ -378,3 +378,35 @@ int nvidia_rm_usermode_alloc_map(nvidia_device_handle device,
 /** Write work_submit_token to NVC361_NOTIFY_CHANNEL_PENDING in usermode region */
 void nvidia_rm_doorbell_ring(volatile void *usermode_map,
 			     uint32_t work_submit_token);
+
+/**
+ * Allocate NV01_CONTEXT_ERROR_TO_MEMORY (or FROM_MEMORY) over an existing
+ * memory object; used for channel error notifiers.
+ */
+int nvidia_rm_context_dma_alloc(nvidia_device_handle device,
+				uint32_t h_parent,
+				uint32_t *h_ctxdma_out,
+				uint32_t h_class,
+				uint32_t h_memory,
+				uint64_t offset,
+				uint64_t limit,
+				uint32_t flags);
+
+/** Allocate KEPLER_CHANNEL_GROUP_A (TSG) for multi-channel/engine groups */
+int nvidia_rm_channel_group_alloc(nvidia_device_handle device,
+				  uint32_t *h_group_out,
+				  uint32_t h_object_error,
+				  uint32_t h_vaspace,
+				  uint32_t engine_type);
+
+/** Allocate FERMI_CONTEXT_SHARE_A (subcontext) for a TSG channel */
+int nvidia_rm_ctxshare_alloc(nvidia_device_handle device,
+			     uint32_t h_parent,
+			     uint32_t *h_ctxshare_out,
+			     uint32_t h_vaspace,
+			     uint32_t flags);
+
+/** Schedule/enable a channel group (NVA06C_CTRL_CMD_GPFIFO_SCHEDULE) */
+int nvidia_rm_channel_group_schedule(nvidia_device_handle device,
+				     uint32_t h_channel_group,
+				     bool enable);

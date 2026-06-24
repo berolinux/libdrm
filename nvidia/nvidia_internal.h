@@ -136,6 +136,20 @@ int nvidia_rm_unmap_memory_dma_raw(int fd, NvHandle h_client, NvHandle h_device,
 int nvidia_rm_usermode_alloc_raw(int fd, NvHandle h_root, NvHandle h_subdevice,
 				 NvHandle *h_usermode_out, NvV32 *h_class_out);
 void nvidia_rm_doorbell_ring(volatile void *usermode_map, NvU32 work_submit_token);
+int nvidia_rm_context_dma_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
+				    NvHandle *h_ctxdma_out, NvV32 h_class,
+				    NvHandle h_subdevice, NvHandle h_memory,
+				    NvU64 offset, NvU64 limit, NvU32 flags);
+int nvidia_rm_channel_group_alloc_raw(int fd, NvHandle h_root, NvHandle h_device,
+				      NvHandle *h_group_out,
+				      NvHandle h_object_error,
+				      NvHandle h_vaspace,
+				      NvU32 engine_type);
+int nvidia_rm_ctxshare_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
+				 NvHandle *h_ctxshare_out,
+				 NvHandle h_vaspace, NvU32 flags);
+int nvidia_rm_channel_group_schedule_raw(int fd, NvHandle h_client,
+					 NvHandle h_channel_group, NvBool enable);
 void nvidia_gp_entry_pack(NvU32 entry[2], NvU64 gpu_addr, NvU32 length_dwords,
 			  bool wait, bool priv);
 int nvidia_rm_export_dmabuf_raw(int fd, NvHandle h_client,

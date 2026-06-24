@@ -931,3 +931,86 @@ nvidia_rm_usermode_alloc_map(nvidia_device_handle device,
 		*usermode_map_out = map;
 	return 0;
 }
+
+int
+nvidia_rm_context_dma_alloc(nvidia_device_handle device,
+			    uint32_t h_parent,
+			    uint32_t *h_ctxdma_out,
+			    uint32_t h_class,
+			    uint32_t h_memory,
+			    uint64_t offset,
+			    uint64_t limit,
+			    uint32_t flags)
+{
+	NvHandle h_cd;
+	int ret;
+
+	if (!device || !h_ctxdma_out || !h_memory)
+		return -EINVAL;
+	h_cd = nvidia_device_new_handle(device);
+	ret = nvidia_rm_context_dma_alloc_raw(device->fd_ctl, device->h_client,
+					      h_parent ? h_parent : device->h_device,
+					      &h_cd,
+					      h_class ? h_class : NV01_CONTEXT_ERROR_TO_MEMORY,
+					      device->h_subdevice, h_memory,
+					      offset, limit, flags);
+	if (ret == 0)
+		*h_ctxdma_out = h_cd;
+	return ret;
+}
+
+int
+nvidia_rm_channel_group_alloc(nvidia_device_handle device,
+			      uint32_t *h_group_out,
+			      uint32_t h_object_error,
+			      uint32_t h_vaspace,
+			      uint32_t engine_type)
+{
+	NvHandle h_grp;
+	int ret;
+
+	if (!device || !h_group_out || !device->h_device)
+		return -EINVAL;
+	h_grp = nvidia_device_new_handle(device);
+	ret = nvidia_rm_channel_group_alloc_raw(device->fd_ctl, device->h_client,
+						device->h_device, &h_grp,
+						h_object_error, h_vaspace,
+						engine_type);
+	if (ret == 0)
+		*h_group_out = h_grp;
+	return ret;
+}
+
+int
+nvidia_rm_ctxshare_alloc(nvidia_device_handle device,
+			 uint32_t h_parent,
+			 uint32_t *h_ctxshare_out,
+			 uint32_t h_vaspace,
+			 uint32_t flags)
+{
+	NvHandle h_cs;
+	int ret;
+
+	if (!device || !h_ctxshare_out)
+		return -EINVAL;
+	h_cs = nvidia_device_new_handle(device);
+	ret = nvidia_rm_ctxshare_alloc_raw(device->fd_ctl, device->h_client,
+					   h_parent ? h_parent : device->h_device,
+					   &h_cs, h_vaspace, flags);
+	if (ret == 0)
+		*h_ctxshare_out = h_cs;
+	return ret;
+}
+
+int
+nvidia_rm_channel_group_schedule(nvidia_device_handle device,
+				 uint32_t h_channel_group,
+				 bool enable)
+{
+	if (!device || !h_channel_group)
+		return -EINVAL;
+	return nvidia_rm_channel_group_schedule_raw(device->fd_ctl,
+						    device->h_client,
+						    h_channel_group,
+						    enable ? NV_TRUE : NV_FALSE);
+}
