@@ -434,3 +434,24 @@ int nvidia_gpfifo_submit_one(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 /** Poll USERD until GPGet catches GPPut (or timeout). target_put = ring put index. */
 int nvidia_userd_wait_gpfifo_idle(volatile void *userd, uint32_t target_put,
 				  uint64_t timeout_ns);
+
+/** Read USERD GPGet/GPPut (optional out pointers). */
+int nvidia_userd_read_gpfifo(volatile void *userd,
+			     uint32_t *get_out, uint32_t *put_out);
+
+/** Free GPFIFO ring slots (one slot reserved as full marker). */
+uint32_t nvidia_gpfifo_ring_space(uint32_t gpfifo_entries,
+				  uint32_t get_idx, uint32_t put_idx);
+
+/**
+ * Submit multiple pre-packed GPFIFO entries (2 dwords each in entries_data).
+ * Single doorbell ring at end if any entry submitted.
+ */
+int nvidia_gpfifo_submit_many(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
+			      uint32_t *gpfifo_put_inout,
+			      volatile void *userd,
+			      const uint32_t *entries_data, uint32_t entry_count,
+			      volatile void *usermode_map,
+			      uint32_t work_submit_token,
+			      bool has_work_submit_token,
+			      uint64_t stall_timeout_ns);

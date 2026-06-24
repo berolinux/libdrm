@@ -893,6 +893,104 @@ nvidia_userd_wait_gpfifo_idle(volatile void *userd, uint32_t target_put,
 }
 
 int
+nvidia_userd_read_gpfifo(volatile void *userd,
+			 uint32_t *get_out, uint32_t *put_out)
+{
+	volatile nvidia_userd_control_t *ud;
+
+	if (!userd)
+		return -EINVAL;
+	ud = (volatile nvidia_userd_control_t *)userd;
+	if (get_out)
+		*get_out = ud->GPGet;
+	if (put_out)
+		*put_out = ud->GPPut;
+	return 0;
+}
+
+uint32_t
+nvidia_gpfifo_ring_space(uint32_t gpfifo_entries,
+			 uint32_t get_idx, uint32_t put_idx)
+{
+	uint32_t used;
+
+	if (!gpfifo_entries)
+		return 0;
+	get_idx %= gpfifo_entries;
+	put_idx %= gpfifo_entries;
+	if (put_idx >= get_idx)
+		used = put_idx - get_idx;
+	else
+		used = gpfifo_entries - get_idx + put_idx;
+	/* One slot reserved: ring full when put+1 == get */
+	if (used >= gpfifo_entries - 1)
+		return 0;
+	return gpfifo_entries - 1 - used;
+}
+
+int
+nvidia_gpfifo_submit_many(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
+			  uint32_t *gpfifo_put_inout,
+			  volatile void *userd,
+			  const uint32_t *entries_data, uint32_t entry_count,
+			  volatile void *usermode_map,
+			  uint32_t work_submit_token,
+			  bool has_work_submit_token,
+			  uint64_t stall_timeout_ns)
+{
+	volatile nvidia_userd_control_t *ud;
+	uint32_t i, put_idx, next_put;
+	struct timespec ts;
+	uint64_t start_ns = 0, now_ns, deadline_ns;
+	bool ring_once = false;
+
+	if (!gpfifo_cpu || !gpfifo_put_inout || !userd || !gpfifo_entries ||
+	    !entries_data || !entry_count)
+		return -EINVAL;
+
+	ud = (volatile nvidia_userd_control_t *)userd;
+
+	if (stall_timeout_ns) {
+		if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
+			start_ns = (uint64_t)ts.tv_sec * 1000000000ull +
+				   (uint64_t)ts.tv_nsec;
+		deadline_ns = start_ns + stall_timeout_ns;
+	} else {
+		deadline_ns = 0;
+	}
+
+	for (i = 0; i < entry_count; i++) {
+		put_idx = *gpfifo_put_inout % gpfifo_entries;
+		next_put = (put_idx + 1) % gpfifo_entries;
+
+		while (ud->GPGet == next_put) {
+			if (!stall_timeout_ns)
+				return -EAGAIN;
+			if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
+				return -ETIMEDOUT;
+			now_ns = (uint64_t)ts.tv_sec * 1000000000ull +
+				 (uint64_t)ts.tv_nsec;
+			if (now_ns >= deadline_ns)
+				return -ETIMEDOUT;
+		}
+
+		gpfifo_cpu[put_idx * 2 + 0] = entries_data[i * 2 + 0];
+		gpfifo_cpu[put_idx * 2 + 1] = entries_data[i * 2 + 1];
+		__sync_synchronize();
+
+		*gpfifo_put_inout = next_put;
+		ud->GPPut = next_put;
+		__sync_synchronize();
+		ring_once = true;
+	}
+
+	if (ring_once && has_work_submit_token && usermode_map)
+		nvidia_rm_doorbell_ring(usermode_map, work_submit_token);
+
+	return 0;
+}
+
+int
 nvidia_rm_export_dmabuf_raw(int fd, NvHandle h_client,
 			    NvHandle *handles, NvU64 *offsets, NvU64 *sizes,
 			    NvU32 num_objects, NvU64 total_size,

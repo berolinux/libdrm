@@ -162,6 +162,18 @@ int nvidia_gpfifo_submit_one(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 			     uint64_t stall_timeout_ns);
 int nvidia_userd_wait_gpfifo_idle(volatile void *userd, uint32_t target_put,
 				  uint64_t timeout_ns);
+int nvidia_userd_read_gpfifo(volatile void *userd,
+			     uint32_t *get_out, uint32_t *put_out);
+uint32_t nvidia_gpfifo_ring_space(uint32_t gpfifo_entries,
+				  uint32_t get_idx, uint32_t put_idx);
+int nvidia_gpfifo_submit_many(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
+			      uint32_t *gpfifo_put_inout,
+			      volatile void *userd,
+			      const uint32_t *entries_data, uint32_t entry_count,
+			      volatile void *usermode_map,
+			      uint32_t work_submit_token,
+			      bool has_work_submit_token,
+			      uint64_t stall_timeout_ns);
 int nvidia_rm_export_dmabuf_raw(int fd, NvHandle h_client,
 				NvHandle *handles, NvU64 *offsets, NvU64 *sizes,
 				NvU32 num_objects, NvU64 total_size,

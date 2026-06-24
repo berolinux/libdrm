@@ -50,3 +50,6 @@ nvidia_rm_ctxshare_alloc
 nvidia_rm_channel_group_schedule
 nvidia_gpfifo_submit_one
 nvidia_userd_wait_gpfifo_idle
+nvidia_userd_read_gpfifo
+nvidia_gpfifo_ring_space
+nvidia_gpfifo_submit_many
