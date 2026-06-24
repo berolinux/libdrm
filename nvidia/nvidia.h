@@ -343,6 +343,27 @@ int nvidia_rm_gpfifo_bind_and_schedule(nvidia_device_handle device,
 				       uint32_t engine_type,
 				       bool enable);
 
+/**
+ * Optional A06F recovery/priority (pass8/9; rare in graphics imm scan).
+ * SET/GET_INTERLEAVE_LEVEL (0xa06f0109/0110), RESTART_RUNLIST (0111),
+ * STOP_CHANNEL (0112), GET_CONTEXT_ID (0113).  Best-effort; RM may reject.
+ */
+int nvidia_rm_gpfifo_set_interleave_level(nvidia_device_handle device,
+					  uint32_t h_channel,
+					  uint32_t tsg_interleave_level);
+int nvidia_rm_gpfifo_get_interleave_level(nvidia_device_handle device,
+					  uint32_t h_channel,
+					  uint32_t *tsg_interleave_level_out);
+int nvidia_rm_gpfifo_restart_runlist(nvidia_device_handle device,
+				     uint32_t h_channel,
+				     bool bypass_wait_for_eng_idle);
+int nvidia_rm_gpfifo_stop_channel(nvidia_device_handle device,
+				  uint32_t h_channel,
+				  bool in_preempt_timeout);
+int nvidia_rm_gpfifo_get_context_id(nvidia_device_handle device,
+				    uint32_t h_channel,
+				    uint32_t *context_id_out);
+
 /** Get work submit token for doorbell (Volta+; NVC36F_CTRL_CMD_GPFIFO_GET_WORK_SUBMIT_TOKEN) */
 int nvidia_rm_gpfifo_get_work_submit_token(nvidia_device_handle device,
 					   uint32_t h_channel,

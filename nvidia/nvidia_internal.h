@@ -119,6 +119,21 @@ int nvidia_rm_gpfifo_schedule_raw(int fd, NvHandle h_client, NvHandle h_channel,
 				  NvBool enable);
 int nvidia_rm_gpfifo_bind_raw(int fd, NvHandle h_client, NvHandle h_channel,
 			      NvU32 engine_type);
+int nvidia_rm_gpfifo_set_interleave_level_raw(int fd, NvHandle h_client,
+					      NvHandle h_channel,
+					      NvU32 tsg_interleave_level);
+int nvidia_rm_gpfifo_get_interleave_level_raw(int fd, NvHandle h_client,
+					      NvHandle h_channel,
+					      NvU32 *tsg_interleave_level_out);
+int nvidia_rm_gpfifo_restart_runlist_raw(int fd, NvHandle h_client,
+					 NvHandle h_channel,
+					 NvBool bypass_wait_for_eng_idle);
+int nvidia_rm_gpfifo_stop_channel_raw(int fd, NvHandle h_client,
+				      NvHandle h_channel,
+				      NvBool in_preempt_timeout);
+int nvidia_rm_gpfifo_get_context_id_raw(int fd, NvHandle h_client,
+					NvHandle h_channel,
+					NvU32 *context_id_out);
 int nvidia_rm_gpfifo_get_work_submit_token_raw(int fd, NvHandle h_client,
 					       NvHandle h_channel,
 					       NvU32 *token_out);

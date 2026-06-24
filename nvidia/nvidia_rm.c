@@ -524,6 +524,83 @@ nvidia_rm_gpfifo_bind_raw(int fd, NvHandle h_client, NvHandle h_channel,
 				     &params, sizeof(params));
 }
 
+/* tick90: A06F recovery/priority (ctrla06fgpfifo.h; pass8 rare in graphics) */
+int
+nvidia_rm_gpfifo_set_interleave_level_raw(int fd, NvHandle h_client,
+					  NvHandle h_channel,
+					  NvU32 tsg_interleave_level)
+{
+	NVA06F_CTRL_INTERLEAVE_LEVEL_PARAMS params;
+
+	memset(&params, 0, sizeof(params));
+	params.tsgInterleaveLevel = tsg_interleave_level;
+	return nvidia_rm_control_raw(fd, h_client, h_channel,
+				     NVA06F_CTRL_CMD_SET_INTERLEAVE_LEVEL,
+				     &params, sizeof(params));
+}
+
+int
+nvidia_rm_gpfifo_get_interleave_level_raw(int fd, NvHandle h_client,
+					  NvHandle h_channel,
+					  NvU32 *tsg_interleave_level_out)
+{
+	NVA06F_CTRL_INTERLEAVE_LEVEL_PARAMS params;
+	int ret;
+
+	memset(&params, 0, sizeof(params));
+	ret = nvidia_rm_control_raw(fd, h_client, h_channel,
+				    NVA06F_CTRL_CMD_GET_INTERLEAVE_LEVEL,
+				    &params, sizeof(params));
+	if (ret == 0 && tsg_interleave_level_out)
+		*tsg_interleave_level_out = params.tsgInterleaveLevel;
+	return ret;
+}
+
+int
+nvidia_rm_gpfifo_restart_runlist_raw(int fd, NvHandle h_client,
+				     NvHandle h_channel,
+				     NvBool bypass_wait_for_eng_idle)
+{
+	NVA06F_CTRL_RESTART_RUNLIST_PARAMS params;
+
+	memset(&params, 0, sizeof(params));
+	params.bBypassWaitForEngIdle = bypass_wait_for_eng_idle;
+	return nvidia_rm_control_raw(fd, h_client, h_channel,
+				     NVA06F_CTRL_CMD_RESTART_RUNLIST,
+				     &params, sizeof(params));
+}
+
+int
+nvidia_rm_gpfifo_stop_channel_raw(int fd, NvHandle h_client,
+				  NvHandle h_channel,
+				  NvBool in_preempt_timeout)
+{
+	NVA06F_CTRL_STOP_CHANNEL_PARAMS params;
+
+	memset(&params, 0, sizeof(params));
+	params.bInPreemptTimeout = in_preempt_timeout;
+	return nvidia_rm_control_raw(fd, h_client, h_channel,
+				     NVA06F_CTRL_CMD_STOP_CHANNEL,
+				     &params, sizeof(params));
+}
+
+int
+nvidia_rm_gpfifo_get_context_id_raw(int fd, NvHandle h_client,
+				    NvHandle h_channel,
+				    NvU32 *context_id_out)
+{
+	NVA06F_CTRL_GET_CONTEXT_ID_PARAMS params;
+	int ret;
+
+	memset(&params, 0, sizeof(params));
+	ret = nvidia_rm_control_raw(fd, h_client, h_channel,
+				    NVA06F_CTRL_CMD_GET_CONTEXT_ID,
+				    &params, sizeof(params));
+	if (ret == 0 && context_id_out)
+		*context_id_out = params.contextId;
+	return ret;
+}
+
 int
 nvidia_rm_gpfifo_get_work_submit_token_raw(int fd, NvHandle h_client,
 					   NvHandle h_channel,

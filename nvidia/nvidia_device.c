@@ -862,6 +862,69 @@ nvidia_rm_gpfifo_bind_and_schedule(nvidia_device_handle device,
 }
 
 int
+nvidia_rm_gpfifo_set_interleave_level(nvidia_device_handle device,
+				      uint32_t h_channel,
+				      uint32_t tsg_interleave_level)
+{
+	if (!device || !h_channel)
+		return -EINVAL;
+	return nvidia_rm_gpfifo_set_interleave_level_raw(device->fd_ctl,
+							 device->h_client,
+							 h_channel,
+							 tsg_interleave_level);
+}
+
+int
+nvidia_rm_gpfifo_get_interleave_level(nvidia_device_handle device,
+				      uint32_t h_channel,
+				      uint32_t *tsg_interleave_level_out)
+{
+	if (!device || !h_channel)
+		return -EINVAL;
+	return nvidia_rm_gpfifo_get_interleave_level_raw(device->fd_ctl,
+							 device->h_client,
+							 h_channel,
+							 tsg_interleave_level_out);
+}
+
+int
+nvidia_rm_gpfifo_restart_runlist(nvidia_device_handle device,
+				 uint32_t h_channel,
+				 bool bypass_wait_for_eng_idle)
+{
+	if (!device || !h_channel)
+		return -EINVAL;
+	return nvidia_rm_gpfifo_restart_runlist_raw(device->fd_ctl,
+						    device->h_client, h_channel,
+						    bypass_wait_for_eng_idle
+							    ? NV_TRUE
+							    : NV_FALSE);
+}
+
+int
+nvidia_rm_gpfifo_stop_channel(nvidia_device_handle device, uint32_t h_channel,
+			      bool in_preempt_timeout)
+{
+	if (!device || !h_channel)
+		return -EINVAL;
+	return nvidia_rm_gpfifo_stop_channel_raw(device->fd_ctl, device->h_client,
+						 h_channel,
+						 in_preempt_timeout ? NV_TRUE
+								    : NV_FALSE);
+}
+
+int
+nvidia_rm_gpfifo_get_context_id(nvidia_device_handle device, uint32_t h_channel,
+				uint32_t *context_id_out)
+{
+	if (!device || !h_channel)
+		return -EINVAL;
+	return nvidia_rm_gpfifo_get_context_id_raw(device->fd_ctl,
+						   device->h_client, h_channel,
+						   context_id_out);
+}
+
+int
 nvidia_rm_gpfifo_get_work_submit_token(nvidia_device_handle device,
 				       uint32_t h_channel, uint32_t *token_out)
 {
