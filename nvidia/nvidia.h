@@ -482,6 +482,15 @@ int nvidia_sema_wait_geq(volatile uint32_t *sema_cpu, uint32_t payload,
 /** Non-blocking: true if sema_cpu[0] >= payload. */
 bool nvidia_sema_signaled_geq(volatile uint32_t *sema_cpu, uint32_t payload);
 
+/**
+ * After GPFIFO submit: wait sema GEQ (if sema_cpu/payload set), else wait
+ * USERD GPGet==target_put.  Combines ring drain + CE/QMD sema completion.
+ * notifier may be NULL; if set, non-blocking error check after sema/idle.
+ */
+int nvidia_submit_wait_complete(volatile void *userd, uint32_t target_put,
+				volatile uint32_t *sema_cpu, uint32_t sema_payload,
+				volatile void *notifier, uint64_t timeout_ns);
+
 #define NVIDIA_MAX_ENGINES_LIST   84
 #define NVIDIA_MAX_ENGINE_CLASSES 128
 

@@ -182,6 +182,9 @@ void nvidia_notifier_reset(volatile void *notifier);
 int nvidia_sema_wait_geq(volatile uint32_t *sema_cpu, uint32_t payload,
 			 uint64_t timeout_ns);
 bool nvidia_sema_signaled_geq(volatile uint32_t *sema_cpu, uint32_t payload);
+int nvidia_submit_wait_complete(volatile void *userd, uint32_t target_put,
+				volatile uint32_t *sema_cpu, uint32_t sema_payload,
+				volatile void *notifier, uint64_t timeout_ns);
 int nvidia_rm_export_dmabuf_raw(int fd, NvHandle h_client,
 				NvHandle *handles, NvU64 *offsets, NvU64 *sizes,
 				NvU32 num_objects, NvU64 total_size,

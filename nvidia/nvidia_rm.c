@@ -1111,6 +1111,34 @@ nvidia_sema_wait_geq(volatile uint32_t *sema_cpu, uint32_t payload,
 }
 
 int
+nvidia_submit_wait_complete(volatile void *userd, uint32_t target_put,
+			    volatile uint32_t *sema_cpu, uint32_t sema_payload,
+			    volatile void *notifier, uint64_t timeout_ns)
+{
+	int r;
+
+	/* Prefer sema completion (CE/QMD/3D release) over coarse GPGet drain */
+	if (sema_cpu && sema_payload) {
+		r = nvidia_sema_wait_geq(sema_cpu, sema_payload, timeout_ns);
+		if (r)
+			return r;
+	} else if (userd) {
+		r = nvidia_userd_wait_gpfifo_idle(userd, target_put, timeout_ns);
+		if (r)
+			return r;
+	}
+
+	if (notifier) {
+		r = nvidia_notifier_status(notifier, NULL, NULL);
+		if (r == -EAGAIN)
+			return 0; /* sema/idle done; notifier may lag */
+		if (r)
+			return r;
+	}
+	return 0;
+}
+
+int
 nvidia_rm_export_dmabuf_raw(int fd, NvHandle h_client,
 			    NvHandle *handles, NvU64 *offsets, NvU64 *sizes,
 			    NvU32 num_objects, NvU64 total_size,
