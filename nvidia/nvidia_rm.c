@@ -500,8 +500,27 @@ nvidia_rm_gpfifo_schedule_raw(int fd, NvHandle h_client, NvHandle h_channel,
 	memset(&params, 0, sizeof(params));
 	params.bEnable = enable;
 	params.bSkipSubmit = NV_FALSE;
+	params.bSkipEnable = NV_FALSE;
 	return nvidia_rm_control_raw(fd, h_client, h_channel,
 				     NVA06F_CTRL_CMD_GPFIFO_SCHEDULE,
+				     &params, sizeof(params));
+}
+
+/*
+ * Pass9: NVA06F_CTRL_CMD_BIND (0xa06f0104) — engineType = NV2080_ENGINE_TYPE_*.
+ * vdpau@345c8 / glcore@a52b69: always before SCHEDULE on graphics/video paths.
+ * paramsSize = 4 (NvU32 only).
+ */
+int
+nvidia_rm_gpfifo_bind_raw(int fd, NvHandle h_client, NvHandle h_channel,
+			  NvU32 engine_type)
+{
+	NVA06F_CTRL_BIND_PARAMS params;
+
+	memset(&params, 0, sizeof(params));
+	params.engineType = engine_type;
+	return nvidia_rm_control_raw(fd, h_client, h_channel,
+				     NVA06F_CTRL_CMD_BIND,
 				     &params, sizeof(params));
 }
 

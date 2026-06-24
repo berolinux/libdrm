@@ -664,18 +664,42 @@ typedef struct {
 #define NVA06F_CTRL_CMD_GPFIFO_SCHEDULE  0xa06f0103
 /* ctrla06fgpfifo.h — optional error notifier (TSG per-channel notify flag) */
 #define NVA06F_CTRL_CMD_SET_ERROR_NOTIFIER 0xa06f0108
+/* Pass8: glcore/vksc use SET_INTERLEAVE_LEVEL (rare; recovery/priority) */
+#define NVA06F_CTRL_CMD_SET_INTERLEAVE_LEVEL 0xa06f0109
+#define NVA06F_CTRL_CMD_GET_INTERLEAVE_LEVEL 0xa06f0110
+#define NVA06F_CTRL_CMD_RESTART_RUNLIST      0xa06f0111
+#define NVA06F_CTRL_CMD_STOP_CHANNEL         0xa06f0112
+#define NVA06F_CTRL_CMD_GET_CONTEXT_ID       0xa06f0113
 typedef struct {
 	NvBool bNotifyEachChannelInTSG;
 } NVA06F_CTRL_SET_ERROR_NOTIFIER_PARAMS;
+/* Interleave level params (ctrla06fgpfifo.h) */
+typedef struct {
+	NvU32 tsgInterleaveLevel;
+} NVA06F_CTRL_INTERLEAVE_LEVEL_PARAMS;
+typedef struct {
+	NvBool bBypassWaitForEngIdle;
+} NVA06F_CTRL_RESTART_RUNLIST_PARAMS;
+typedef struct {
+	NvBool bInPreemptTimeout;
+} NVA06F_CTRL_STOP_CHANNEL_PARAMS;
+typedef struct {
+	NvU32 contextId;
+} NVA06F_CTRL_GET_CONTEXT_ID_PARAMS;
 #define NVC36F_CTRL_CMD_GPFIFO_GET_WORK_SUBMIT_TOKEN 0xc36f0108
 /* Optional: set error-notifier slot for work_submit_token (ctrlc36f.h) */
 #define NVC36F_CTRL_CMD_GPFIFO_SET_WORK_SUBMIT_TOKEN_NOTIF_INDEX 0xc36f010a
 /* Default notifier index for doorbell token (channel GPFIFO notification types) */
 #define NV_CHANNELGPFIFO_NOTIFICATION_TYPE_WORK_SUBMIT_TOKEN 0x1
 
+/*
+ * Pass9 vdpau@3461b / glcore@a52bbc: RmControl paramsSize=3 for SCHEDULE
+ * (bEnable + bSkipSubmit + bSkipEnable). Older code omitted bSkipEnable.
+ */
 typedef struct {
 	NvBool bEnable;
 	NvBool bSkipSubmit;
+	NvBool bSkipEnable;
 } NVA06F_CTRL_GPFIFO_SCHEDULE_PARAMS;
 
 typedef struct {

@@ -117,6 +117,8 @@ int nvidia_rm_wait_open_complete_raw(int fd_ctl, NvS32 *rc_out,
 				     NvU32 *adapter_status_out);
 int nvidia_rm_gpfifo_schedule_raw(int fd, NvHandle h_client, NvHandle h_channel,
 				  NvBool enable);
+int nvidia_rm_gpfifo_bind_raw(int fd, NvHandle h_client, NvHandle h_channel,
+			      NvU32 engine_type);
 int nvidia_rm_gpfifo_get_work_submit_token_raw(int fd, NvHandle h_client,
 					       NvHandle h_channel,
 					       NvU32 *token_out);

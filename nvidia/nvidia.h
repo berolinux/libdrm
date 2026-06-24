@@ -329,6 +329,20 @@ int nvidia_rm_gpfifo_schedule(nvidia_device_handle device,
 			      uint32_t h_channel,
 			      bool enable);
 
+/**
+ * Bind channel to engine runlist (NVA06F_CTRL_CMD_BIND 0xa06f0104).
+ * Pass7/8: always before SCHEDULE on graphics path (glcore a52b69).
+ */
+int nvidia_rm_gpfifo_bind(nvidia_device_handle device,
+			  uint32_t h_channel,
+			  uint32_t engine_type);
+
+/** Bind then schedule (canonical cold-path order). */
+int nvidia_rm_gpfifo_bind_and_schedule(nvidia_device_handle device,
+				       uint32_t h_channel,
+				       uint32_t engine_type,
+				       bool enable);
+
 /** Get work submit token for doorbell (Volta+; NVC36F_CTRL_CMD_GPFIFO_GET_WORK_SUBMIT_TOKEN) */
 int nvidia_rm_gpfifo_get_work_submit_token(nvidia_device_handle device,
 					   uint32_t h_channel,

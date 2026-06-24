@@ -825,6 +825,42 @@ nvidia_rm_gpfifo_schedule(nvidia_device_handle device, uint32_t h_channel,
 					     h_channel, enable ? NV_TRUE : NV_FALSE);
 }
 
+/*
+ * Pass9 / OGKM ctrla06fgpfifo.h: BIND configures channel runlist for engineType
+ * (NV2080_ENGINE_TYPE_GRAPHICS=1, COPY0=2, …). Non-fatal if already bound.
+ */
+int
+nvidia_rm_gpfifo_bind(nvidia_device_handle device, uint32_t h_channel,
+		      uint32_t engine_type)
+{
+	if (!device || !h_channel)
+		return -EINVAL;
+	return nvidia_rm_gpfifo_bind_raw(device->fd_ctl, device->h_client,
+					 h_channel, engine_type);
+}
+
+/*
+ * Canonical cold-path order (pass8/9): BIND then SCHEDULE.
+ * BIND failure is tolerated (already-bound / wrong engine); SCHEDULE result wins.
+ */
+int
+nvidia_rm_gpfifo_bind_and_schedule(nvidia_device_handle device,
+				   uint32_t h_channel,
+				   uint32_t engine_type,
+				   bool enable)
+{
+	int ret;
+
+	if (!device || !h_channel)
+		return -EINVAL;
+	(void)nvidia_rm_gpfifo_bind_raw(device->fd_ctl, device->h_client,
+					h_channel, engine_type);
+	ret = nvidia_rm_gpfifo_schedule_raw(device->fd_ctl, device->h_client,
+					    h_channel,
+					    enable ? NV_TRUE : NV_FALSE);
+	return ret;
+}
+
 int
 nvidia_rm_gpfifo_get_work_submit_token(nvidia_device_handle device,
 				       uint32_t h_channel, uint32_t *token_out)
