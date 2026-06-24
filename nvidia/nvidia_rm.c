@@ -667,7 +667,11 @@ nvidia_rm_doorbell_ring(volatile void *usermode_map, NvU32 work_submit_token)
 
 	if (!usermode_map)
 		return;
-	/* NVC361_NOTIFY_CHANNEL_PENDING: write work_submit_token to wake channel */
+	/*
+	 * NVC361_NOTIFY_CHANNEL_PENDING @ 0x90 (clc361.h / VOLTA_USERMODE_A).
+	 * 610.43.02 glcore/eglcore embed class 0xC361/C661/C761; kick is write
+	 * work_submit_token here after GPFIFO entry + USERD GPPut + sfence.
+	 */
 	doorbell = (volatile NvU32 *)((uint8_t *)usermode_map +
 				      NVC361_NOTIFY_CHANNEL_PENDING);
 	__sync_synchronize();
