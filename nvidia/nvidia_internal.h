@@ -157,6 +157,24 @@ int nvidia_rm_tsg_get_interleave_level_raw(int fd, NvHandle h_client,
 					   NvU32 *tsg_interleave_level_out);
 int nvidia_rm_tsg_make_realtime_raw(int fd, NvHandle h_client,
 				    NvHandle h_channel_group, NvBool realtime);
+/* tick92: NV0080 FIFO device-level runlist/idle (target h_device) */
+int nvidia_rm_fifo_stop_runlist_raw(int fd, NvHandle h_client, NvHandle h_device,
+				    NvU32 engine_id);
+int nvidia_rm_fifo_start_runlist_raw(int fd, NvHandle h_client, NvHandle h_device,
+				     NvU32 engine_id);
+int nvidia_rm_fifo_get_latency_buffer_size_raw(int fd, NvHandle h_client,
+					       NvHandle h_device, NvU32 engine_id,
+					       NvU32 *gp_entries_out,
+					       NvU32 *pb_entries_out);
+int nvidia_rm_fifo_get_caps_v2_raw(int fd, NvHandle h_client, NvHandle h_device,
+				   NvU8 *caps_tbl_out, size_t caps_tbl_bytes);
+int nvidia_rm_fifo_idle_channels_raw(int fd, NvHandle h_client, NvHandle h_device,
+				     const NvHandle *h_channels, NvU32 num_channels,
+				     NvU32 flags, NvU32 timeout_us);
+int nvidia_rm_gpfifo_update_fault_method_buffer_raw(int fd, NvHandle h_client,
+						    NvHandle h_channel,
+						    NvU64 bar2_addr_rq0,
+						    NvU64 bar2_addr_rq1);
 int nvidia_rm_gpfifo_get_work_submit_token_raw(int fd, NvHandle h_client,
 					       NvHandle h_channel,
 					       NvU32 *token_out);

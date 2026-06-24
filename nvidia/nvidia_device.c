@@ -1017,6 +1017,73 @@ nvidia_rm_tsg_make_realtime(nvidia_device_handle device,
 }
 
 int
+nvidia_rm_fifo_stop_runlist(nvidia_device_handle device, uint32_t engine_id)
+{
+	if (!device || !device->h_device)
+		return -EINVAL;
+	return nvidia_rm_fifo_stop_runlist_raw(device->fd_ctl, device->h_client,
+					       device->h_device, engine_id);
+}
+
+int
+nvidia_rm_fifo_start_runlist(nvidia_device_handle device, uint32_t engine_id)
+{
+	if (!device || !device->h_device)
+		return -EINVAL;
+	return nvidia_rm_fifo_start_runlist_raw(device->fd_ctl, device->h_client,
+						device->h_device, engine_id);
+}
+
+int
+nvidia_rm_fifo_get_latency_buffer_size(nvidia_device_handle device,
+					uint32_t engine_id,
+					uint32_t *gp_entries_out,
+					uint32_t *pb_entries_out)
+{
+	if (!device || !device->h_device)
+		return -EINVAL;
+	return nvidia_rm_fifo_get_latency_buffer_size_raw(
+		device->fd_ctl, device->h_client, device->h_device, engine_id,
+		gp_entries_out, pb_entries_out);
+}
+
+int
+nvidia_rm_fifo_get_caps_v2(nvidia_device_handle device, uint8_t *caps_tbl_out,
+			    size_t caps_tbl_bytes)
+{
+	if (!device || !device->h_device)
+		return -EINVAL;
+	return nvidia_rm_fifo_get_caps_v2_raw(device->fd_ctl, device->h_client,
+					      device->h_device, caps_tbl_out,
+					      caps_tbl_bytes);
+}
+
+int
+nvidia_rm_fifo_idle_channels(nvidia_device_handle device,
+			      const uint32_t *h_channels, uint32_t num_channels,
+			      uint32_t flags, uint32_t timeout_us)
+{
+	if (!device || !device->h_device || !h_channels || num_channels == 0)
+		return -EINVAL;
+	return nvidia_rm_fifo_idle_channels_raw(
+		device->fd_ctl, device->h_client, device->h_device,
+		(const NvHandle *)h_channels, num_channels, flags, timeout_us);
+}
+
+int
+nvidia_rm_gpfifo_update_fault_method_buffer(nvidia_device_handle device,
+					    uint32_t h_channel,
+					    uint64_t bar2_addr_rq0,
+					    uint64_t bar2_addr_rq1)
+{
+	if (!device || !h_channel)
+		return -EINVAL;
+	return nvidia_rm_gpfifo_update_fault_method_buffer_raw(
+		device->fd_ctl, device->h_client, h_channel, bar2_addr_rq0,
+		bar2_addr_rq1);
+}
+
+int
 nvidia_rm_gpfifo_get_work_submit_token(nvidia_device_handle device,
 				       uint32_t h_channel, uint32_t *token_out)
 {

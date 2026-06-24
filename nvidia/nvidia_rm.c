@@ -10,6 +10,7 @@
 #include <sched.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -722,6 +723,135 @@ nvidia_rm_tsg_make_realtime_raw(int fd, NvHandle h_client,
 	params.bRealtime = realtime;
 	return nvidia_rm_control_raw(fd, h_client, h_channel_group,
 				     NVA06C_CTRL_CMD_MAKE_REALTIME,
+				     &params, sizeof(params));
+}
+
+/* tick92: NV0080 FIFO device-level (ctrl0080fifo.h; object = h_device) */
+int
+nvidia_rm_fifo_stop_runlist_raw(int fd, NvHandle h_client, NvHandle h_device,
+				NvU32 engine_id)
+{
+	NV0080_CTRL_FIFO_STOP_RUNLIST_PARAMS params;
+
+	memset(&params, 0, sizeof(params));
+	params.engineID = engine_id;
+	return nvidia_rm_control_raw(fd, h_client, h_device,
+				     NV0080_CTRL_CMD_FIFO_STOP_RUNLIST,
+				     &params, sizeof(params));
+}
+
+int
+nvidia_rm_fifo_start_runlist_raw(int fd, NvHandle h_client, NvHandle h_device,
+				 NvU32 engine_id)
+{
+	NV0080_CTRL_FIFO_START_RUNLIST_PARAMS params;
+
+	memset(&params, 0, sizeof(params));
+	params.engineID = engine_id;
+	return nvidia_rm_control_raw(fd, h_client, h_device,
+				     NV0080_CTRL_CMD_FIFO_START_RUNLIST,
+				     &params, sizeof(params));
+}
+
+int
+nvidia_rm_fifo_get_latency_buffer_size_raw(int fd, NvHandle h_client,
+					   NvHandle h_device, NvU32 engine_id,
+					   NvU32 *gp_entries_out,
+					   NvU32 *pb_entries_out)
+{
+	NV0080_CTRL_FIFO_GET_LATENCY_BUFFER_SIZE_PARAMS params;
+	int ret;
+
+	memset(&params, 0, sizeof(params));
+	params.engineID = engine_id;
+	ret = nvidia_rm_control_raw(fd, h_client, h_device,
+				    NV0080_CTRL_CMD_FIFO_GET_LATENCY_BUFFER_SIZE,
+				    &params, sizeof(params));
+	if (ret == 0) {
+		if (gp_entries_out)
+			*gp_entries_out = params.gpEntries;
+		if (pb_entries_out)
+			*pb_entries_out = params.pbEntries;
+	}
+	return ret;
+}
+
+int
+nvidia_rm_fifo_get_caps_v2_raw(int fd, NvHandle h_client, NvHandle h_device,
+			       NvU8 *caps_tbl_out, size_t caps_tbl_bytes)
+{
+	NV0080_CTRL_FIFO_GET_CAPS_V2_PARAMS params;
+	int ret;
+
+	memset(&params, 0, sizeof(params));
+	ret = nvidia_rm_control_raw(fd, h_client, h_device,
+				    NV0080_CTRL_CMD_FIFO_GET_CAPS_V2,
+				    &params, sizeof(params));
+	if (ret == 0 && caps_tbl_out && caps_tbl_bytes > 0) {
+		size_t n = caps_tbl_bytes;
+		if (n > NV0080_CTRL_FIFO_CAPS_TBL_SIZE)
+			n = NV0080_CTRL_FIFO_CAPS_TBL_SIZE;
+		memcpy(caps_tbl_out, params.capsTbl, n);
+	}
+	return ret;
+}
+
+/*
+ * IDLE_CHANNELS uses a huge fixed array in RM params.  Allocate exact RM-sized
+ * buffer, copy handles, issue control on h_device.
+ */
+int
+nvidia_rm_fifo_idle_channels_raw(int fd, NvHandle h_client, NvHandle h_device,
+				 const NvHandle *h_channels, NvU32 num_channels,
+				 NvU32 flags, NvU32 timeout_us)
+{
+	/* Layout must match NV0080_CTRL_FIFO_IDLE_CHANNELS_PARAMS */
+	struct {
+		NvU32    numChannels;
+		NvHandle hChannels[NV0080_CTRL_CMD_FIFO_IDLE_CHANNELS_MAX_CHANNELS];
+		NvU32    flags;
+		NvU32    timeout;
+	} *params;
+	size_t psz;
+	int ret;
+	NvU32 i;
+
+	if (!h_channels || num_channels == 0)
+		return -EINVAL;
+	if (num_channels > NV0080_CTRL_CMD_FIFO_IDLE_CHANNELS_MAX_CHANNELS)
+		return -EINVAL;
+	if (num_channels > NV0080_CTRL_FIFO_IDLE_CHANNELS_HELPER_MAX)
+		return -E2BIG;
+
+	psz = sizeof(*params);
+	params = calloc(1, psz);
+	if (!params)
+		return -ENOMEM;
+	params->numChannels = num_channels;
+	for (i = 0; i < num_channels; i++)
+		params->hChannels[i] = h_channels[i];
+	params->flags = flags;
+	params->timeout = timeout_us;
+	ret = nvidia_rm_control_raw(fd, h_client, h_device,
+				    NV0080_CTRL_CMD_FIFO_IDLE_CHANNELS,
+				    params, (NvU32)psz);
+	free(params);
+	return ret;
+}
+
+int
+nvidia_rm_gpfifo_update_fault_method_buffer_raw(int fd, NvHandle h_client,
+						NvHandle h_channel,
+						NvU64 bar2_addr_rq0,
+						NvU64 bar2_addr_rq1)
+{
+	NVC36F_CTRL_GPFIFO_UPDATE_FAULT_METHOD_BUFFER_PARAMS params;
+
+	memset(&params, 0, sizeof(params));
+	params.bar2Addr[0] = bar2_addr_rq0;
+	params.bar2Addr[1] = bar2_addr_rq1;
+	return nvidia_rm_control_raw(fd, h_client, h_channel,
+				     NVC36F_CTRL_CMD_GPFIFO_UPDATE_FAULT_METHOD_BUFFER,
 				     &params, sizeof(params));
 }
 

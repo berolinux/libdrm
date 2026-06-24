@@ -402,6 +402,34 @@ int nvidia_rm_gpfifo_get_work_submit_token(nvidia_device_handle device,
 					   uint32_t h_channel,
 					   uint32_t *token_out);
 
+/**
+ * tick92: NV0080 device FIFO controls (target = device handle NV01_DEVICE_0).
+ * STOP/START_RUNLIST: per-engine runlist pause/resume (round-robin mode only).
+ * IDLE_CHANNELS: deschedule + wait for listed channels (max helper 64 handles).
+ * GET_LATENCY_BUFFER_SIZE: engine gp/pb entry counts for ring sizing diagnostics.
+ * GET_CAPS_V2: 2-byte FIFO capability table.
+ */
+int nvidia_rm_fifo_stop_runlist(nvidia_device_handle device, uint32_t engine_id);
+int nvidia_rm_fifo_start_runlist(nvidia_device_handle device, uint32_t engine_id);
+int nvidia_rm_fifo_get_latency_buffer_size(nvidia_device_handle device,
+					   uint32_t engine_id,
+					   uint32_t *gp_entries_out,
+					   uint32_t *pb_entries_out);
+int nvidia_rm_fifo_get_caps_v2(nvidia_device_handle device,
+			       uint8_t *caps_tbl_out, size_t caps_tbl_bytes);
+int nvidia_rm_fifo_idle_channels(nvidia_device_handle device,
+				 const uint32_t *h_channels, uint32_t num_channels,
+				 uint32_t flags, uint32_t timeout_us);
+
+/**
+ * C36F UPDATE_FAULT_METHOD_BUFFER (0xc36f0109): set bar2 fault method buffer
+ * addresses for runqueue 0/1 (SR-IOV/vGPU; optional on bare metal).
+ */
+int nvidia_rm_gpfifo_update_fault_method_buffer(nvidia_device_handle device,
+						uint32_t h_channel,
+						uint64_t bar2_addr_rq0,
+						uint64_t bar2_addr_rq1);
+
 /** Pack an 8-byte GPFIFO entry (NV506F/NVC36F format) into entry[2] */
 void nvidia_gp_entry_pack(uint32_t entry[2], uint64_t gpu_addr,
 			  uint32_t length_dwords, bool wait, bool priv);

@@ -110,7 +110,46 @@ typedef NvU8     NvBool;
 #define NV0080_CTRL_CMD_GPU_GET_CLASSLIST           0x800201
 #define NV0080_CTRL_CMD_GPU_GET_NUM_SUBDEVICES      0x800280
 #define NV0080_CTRL_CMD_GPU_GET_VIRTUALIZATION_MODE 0x800289
-#define NV0080_CTRL_CMD_FIFO_GET_ENGINE_CONTEXT_PROPERTIES 0x801701
+/* NV01_DEVICE_0 FIFO (ctrl0080fifo.h); target = h_device (0080), not subdevice */
+#define NV0080_CTRL_CMD_FIFO_GET_CAPS                0x801701
+#define NV0080_CTRL_CMD_FIFO_GET_ENGINE_CONTEXT_PROPERTIES 0x801707
+#define NV0080_CTRL_CMD_FIFO_GET_CHANNELLIST         0x80170d
+#define NV0080_CTRL_CMD_FIFO_GET_LATENCY_BUFFER_SIZE 0x80170e
+#define NV0080_CTRL_CMD_FIFO_SET_CHANNEL_PROPERTIES  0x80170f
+#define NV0080_CTRL_CMD_FIFO_STOP_RUNLIST            0x801711
+#define NV0080_CTRL_CMD_FIFO_START_RUNLIST           0x801712
+#define NV0080_CTRL_CMD_FIFO_GET_CAPS_V2             0x801713
+#define NV0080_CTRL_CMD_FIFO_IDLE_CHANNELS           0x801714
+#define NV0080_CTRL_FIFO_CAPS_TBL_SIZE               2
+#define NV0080_CTRL_CMD_FIFO_IDLE_CHANNELS_MAX_CHANNELS 4096
+/* Practical max for userspace helper (avoids 16KB stack/heap on every call) */
+#define NV0080_CTRL_FIFO_IDLE_CHANNELS_HELPER_MAX    64
+
+typedef struct {
+	NvU32 engineID;
+	NvU32 gpEntries;
+	NvU32 pbEntries;
+} NV0080_CTRL_FIFO_GET_LATENCY_BUFFER_SIZE_PARAMS;
+
+typedef struct {
+	NvU32 engineID;
+} NV0080_CTRL_FIFO_STOP_RUNLIST_PARAMS;
+
+typedef struct {
+	NvU32 engineID;
+} NV0080_CTRL_FIFO_START_RUNLIST_PARAMS;
+
+typedef struct {
+	NvU8 capsTbl[NV0080_CTRL_FIFO_CAPS_TBL_SIZE];
+} NV0080_CTRL_FIFO_GET_CAPS_V2_PARAMS;
+
+/* Full RM param has 4096 handles; helper uses compact form via custom call */
+typedef struct {
+	NvU32    numChannels;
+	NvU32    flags;
+	NvU32    timeout;
+	/* Caller supplies handles via separate array in helper API */
+} NV0080_CTRL_FIFO_IDLE_CHANNELS_META;
 
 #define NV2080_CTRL_CMD_GPU_GET_NAME_STRING         0x20800110
 #define NV2080_CTRL_CMD_GPU_GET_SHORT_NAME_STRING   0x20800111
