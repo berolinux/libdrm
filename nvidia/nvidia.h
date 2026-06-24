@@ -547,6 +547,13 @@ nvidia_smoke_present_wait(volatile void *userd, uint32_t target_put,
 #define NVIDIA_SMOKE_G1_SEMA_GPU_DEFAULT  0x300000ull
 #define NVIDIA_SMOKE_G1_SIZE_DEFAULT      256u
 
+/* G2 compute smoke (pairs with mesa nv_channel_g2_* / nv_smoke_selftest_g2_*) */
+#define NVIDIA_SMOKE_G2_PROG_GPU_DEFAULT  0x100000ull
+#define NVIDIA_SMOKE_G2_QMD_GPU_DEFAULT   0x400000ull
+#define NVIDIA_SMOKE_G2_SEMA_GPU_DEFAULT  0x300000ull
+#define NVIDIA_SMOKE_G2_REGS_DEFAULT      16u
+#define NVIDIA_SMOKE_G2_SASS_DEFAULT      0x86u
+
 static inline int
 nvidia_smoke_g1_wait_complete(volatile void *userd, uint32_t target_put,
 			      volatile uint32_t *sema_cpu, uint32_t sema_payload,
@@ -563,6 +570,16 @@ nvidia_smoke_g1_wait_complete(volatile void *userd, uint32_t target_put,
 	if (sema_cpu && !nvidia_smoke_sema_check(sema_cpu, sema_payload, true))
 		return -ETIMEDOUT;
 	return 0;
+}
+
+/** G2: same wait pattern as G1 (QMD sema release0 + GPFIFO idle). */
+static inline int
+nvidia_smoke_g2_wait_complete(volatile void *userd, uint32_t target_put,
+			      volatile uint32_t *sema_cpu, uint32_t sema_payload,
+			      volatile void *notifier, uint64_t timeout_ns)
+{
+	return nvidia_smoke_g1_wait_complete(userd, target_put, sema_cpu,
+					     sema_payload, notifier, timeout_ns);
 }
 
 #define NVIDIA_MAX_ENGINES_LIST   84
