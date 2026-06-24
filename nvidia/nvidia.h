@@ -532,6 +532,39 @@ nvidia_smoke_present_wait(volatile void *userd, uint32_t target_put,
 					   sema_payload, notifier, timeout_ns);
 }
 
+/**
+ * G1 bring-up recipe (userspace side, pairs with mesa nv_channel_g1_*):
+ *   1. nvidia_smoke_sema_reset(sema_cpu)
+ *   2. Submit CE pitch copy + LAUNCH_DMA sema one-word (or sema-only)
+ *   3. nvidia_smoke_g1_wait_complete(...) — USERD/GPFIFO + sema GEQ
+ *   4. nvidia_smoke_sema_check(sema_cpu, payload, true)
+ *
+ * Default addresses/payloads match mesa nv_smoke_selftest_g1_ce_sema_push
+ * host trace (src 0x100000, dst 0x200000, sema 0x300000, payload 0x42).
+ */
+#define NVIDIA_SMOKE_G1_SRC_GPU_DEFAULT   0x100000ull
+#define NVIDIA_SMOKE_G1_DST_GPU_DEFAULT   0x200000ull
+#define NVIDIA_SMOKE_G1_SEMA_GPU_DEFAULT  0x300000ull
+#define NVIDIA_SMOKE_G1_SIZE_DEFAULT      256u
+
+static inline int
+nvidia_smoke_g1_wait_complete(volatile void *userd, uint32_t target_put,
+			      volatile uint32_t *sema_cpu, uint32_t sema_payload,
+			      volatile void *notifier, uint64_t timeout_ns)
+{
+	int r;
+
+	if (!sema_payload)
+		sema_payload = NVIDIA_SMOKE_SEMA_PAYLOAD_DEFAULT;
+	r = nvidia_submit_wait_complete(userd, target_put, sema_cpu,
+					sema_payload, notifier, timeout_ns);
+	if (r)
+		return r;
+	if (sema_cpu && !nvidia_smoke_sema_check(sema_cpu, sema_payload, true))
+		return -ETIMEDOUT;
+	return 0;
+}
+
 #define NVIDIA_MAX_ENGINES_LIST   84
 #define NVIDIA_MAX_ENGINE_CLASSES 128
 
