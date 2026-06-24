@@ -90,6 +90,20 @@ int nvidia_rm_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
 			void *alloc_parms, uint32_t alloc_parms_size);
 int nvidia_rm_free_raw(int fd, NvHandle h_root, NvHandle h_parent,
 		       NvHandle h_object);
+/* tick93: DUP_OBJECT / GET_EVENT_DATA / NV01_EVENT / EVENT_SET_NOTIFICATION */
+int nvidia_rm_dup_object_raw(int fd, NvHandle h_client_dst, NvHandle h_parent_dst,
+			     NvHandle *h_object_dst_inout, NvHandle h_client_src,
+			     NvHandle h_object_src, NvU32 flags);
+int nvidia_rm_get_event_data_raw(int fd, NvUnixEvent *event_out,
+				 NvU32 *more_events_out);
+int nvidia_rm_alloc_os_event_object_raw(int fd, NvHandle h_client,
+					NvHandle h_parent, NvHandle h_src_resource,
+					NvHandle *h_event_out, NvV32 notify_index,
+					int os_event_fd);
+int nvidia_rm_event_set_notification_raw(int fd, NvHandle h_client,
+					 NvHandle h_subdevice, NvU32 event,
+					 NvU32 action, NvBool notify_state,
+					 NvU32 info32, NvU16 info16);
 int nvidia_rm_control_raw(int fd, NvHandle h_client, NvHandle h_object,
 			  NvV32 cmd, void *params, uint32_t params_size);
 int nvidia_rm_map_memory_raw(int fd, NvHandle h_client, NvHandle h_device,

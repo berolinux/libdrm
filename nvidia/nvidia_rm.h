@@ -424,7 +424,7 @@ typedef struct {
 	NvU32    status;
 } NVOS54_PARAMETERS;
 
-/* NVOS55: dup object */
+/* NVOS55: dup object (NV_ESC_RM_DUP_OBJECT) */
 typedef struct {
 	NvHandle hClient;
 	NvHandle hParent;
@@ -434,6 +434,53 @@ typedef struct {
 	NvU32    flags;
 	NvU32    status;
 } NVOS55_PARAMETERS;
+
+#define NV04_DUP_HANDLE_FLAGS_NONE                        0x00000000u
+#define NV04_DUP_HANDLE_FLAGS_REJECT_KERNEL_DUP_PRIVILEGE 0x00000001u
+
+/* NVOS41: get event data (NV_ESC_RM_GET_EVENT_DATA) */
+typedef struct {
+	NvHandle hObject;
+	NvV32    NotifyIndex;
+	NvV32    info32;
+	NvU16    info16;
+} NvUnixEvent;
+
+typedef struct {
+	NvU64 pEvent NV_ALIGN_BYTES(8); /* pointer to NvUnixEvent */
+	NvV32 MoreEvents;
+	NvV32 status;
+} NVOS41_PARAMETERS;
+
+/* NV0005: NV01_EVENT alloc params (cl0005.h) */
+typedef struct {
+	NvHandle hParentClient;
+	NvHandle hSrcResource;
+	NvV32    hClass;
+	NvV32    notifyIndex;
+	NvU64    data NV_ALIGN_BYTES(8); /* OS event fd as pointer/handle on Linux */
+} NV0005_ALLOC_PARAMETERS;
+
+/* NV01_EVENT notifyIndex flags (OR into notifyIndex; nvos.h) */
+#define NV01_EVENT_BROADCAST                                       0x80000000u
+#define NV01_EVENT_PERMIT_NON_ROOT_EVENT_KERNEL_CALLBACK_CREATION  0x40000000u
+#define NV01_EVENT_SUBDEVICE_SPECIFIC                              0x20000000u
+#define NV01_EVENT_WITHOUT_EVENT_DATA                              0x10000000u
+#define NV01_EVENT_NONSTALL_INTR                                   0x08000000u
+#define NV01_EVENT_CLIENT_RM                                       0x04000000u
+
+/* NV2080_CTRL_CMD_EVENT_SET_NOTIFICATION (ctrl2080event.h; target = subdevice) */
+typedef struct {
+	NvU32  event;
+	NvU32  action;
+	NvBool bNotifyState;
+	NvU32  info32;
+	NvU16  info16;
+} NV2080_CTRL_EVENT_SET_NOTIFICATION_PARAMS;
+
+#define NV2080_CTRL_EVENT_SET_NOTIFICATION_ACTION_DISABLE 0x00000000u
+#define NV2080_CTRL_EVENT_SET_NOTIFICATION_ACTION_SINGLE  0x00000001u
+#define NV2080_CTRL_EVENT_SET_NOTIFICATION_ACTION_REPEAT  0x00000002u
 
 /* NVOS32: vid heap control - outer header + data union from nvos.h */
 #define NVOS32_FREE_FLAGS_MEMORY_HANDLE_PROVIDED    0x00000001

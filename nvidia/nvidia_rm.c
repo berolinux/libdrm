@@ -236,6 +236,119 @@ nvidia_rm_free_raw(int fd, NvHandle h_root, NvHandle h_parent, NvHandle h_object
 	return 0;
 }
 
+/* tick93: NV_ESC_RM_DUP_OBJECT (NVOS55) */
+int
+nvidia_rm_dup_object_raw(int fd, NvHandle h_client_dst, NvHandle h_parent_dst,
+			 NvHandle *h_object_dst_inout, NvHandle h_client_src,
+			 NvHandle h_object_src, NvU32 flags)
+{
+	NVOS55_PARAMETERS p;
+	int ret;
+
+	memset(&p, 0, sizeof(p));
+	p.hClient = h_client_dst;
+	p.hParent = h_parent_dst;
+	p.hObject = h_object_dst_inout ? *h_object_dst_inout : 0;
+	p.hClientSrc = h_client_src;
+	p.hObjectSrc = h_object_src;
+	p.flags = flags;
+	p.status = NV_ERR_GENERIC;
+
+	ret = rm_ioctl_auto(fd, NV_ESC_RM_DUP_OBJECT, &p, sizeof(p));
+	if (ret != 0)
+		return -errno;
+	if (p.status != NV_OK)
+		return -(int)p.status;
+	if (h_object_dst_inout)
+		*h_object_dst_inout = p.hObject;
+	return 0;
+}
+
+/* tick93: NV_ESC_RM_GET_EVENT_DATA (NVOS41 + NvUnixEvent buffer) */
+int
+nvidia_rm_get_event_data_raw(int fd, NvUnixEvent *event_out,
+			     NvU32 *more_events_out)
+{
+	NVOS41_PARAMETERS p;
+	NvUnixEvent ev;
+	int ret;
+
+	if (!event_out)
+		return -EINVAL;
+	memset(&ev, 0, sizeof(ev));
+	memset(&p, 0, sizeof(p));
+	p.pEvent = (NvU64)(uintptr_t)&ev;
+	p.MoreEvents = 0;
+	p.status = NV_ERR_GENERIC;
+
+	ret = rm_ioctl_auto(fd, NV_ESC_RM_GET_EVENT_DATA, &p, sizeof(p));
+	if (ret != 0)
+		return -errno;
+	if (p.status != NV_OK)
+		return -(int)p.status;
+	*event_out = ev;
+	if (more_events_out)
+		*more_events_out = p.MoreEvents;
+	return 0;
+}
+
+/*
+ * tick93: RmAlloc(NV01_EVENT_OS_EVENT) with NV0005_ALLOC_PARAMETERS.
+ * data = OS event fd pointer; hSrcResource = object that generates events.
+ */
+int
+nvidia_rm_alloc_os_event_object_raw(int fd, NvHandle h_client,
+				    NvHandle h_parent, NvHandle h_src_resource,
+				    NvHandle *h_event_out, NvV32 notify_index,
+				    int os_event_fd)
+{
+	NV0005_ALLOC_PARAMETERS ap;
+	NvHandle h_new = 0;
+	int ret;
+
+	if (!h_event_out || os_event_fd < 0)
+		return -EINVAL;
+	memset(&ap, 0, sizeof(ap));
+	ap.hParentClient = h_client;
+	ap.hSrcResource = h_src_resource;
+	ap.hClass = NV01_EVENT_OS_EVENT;
+	ap.notifyIndex = notify_index;
+	/* Linux: pass fd as opaque pointer (proprietary driver convention) */
+	ap.data = (NvU64)(uintptr_t)(intptr_t)os_event_fd;
+
+	ret = nvidia_rm_alloc_raw(fd, h_client, h_parent, &h_new, NV01_EVENT,
+				  &ap, sizeof(ap));
+	if (ret != 0) {
+		/* Fallback: try class NV01_EVENT_OS_EVENT as hClass directly */
+		h_new = 0;
+		ret = nvidia_rm_alloc_raw(fd, h_client, h_parent, &h_new,
+					  NV01_EVENT_OS_EVENT, &ap, sizeof(ap));
+	}
+	if (ret != 0)
+		return ret;
+	*h_event_out = h_new;
+	return 0;
+}
+
+int
+nvidia_rm_event_set_notification_raw(int fd, NvHandle h_client,
+				     NvHandle h_subdevice, NvU32 event,
+				     NvU32 action, NvBool notify_state,
+				     NvU32 info32, NvU16 info16)
+{
+	NV2080_CTRL_EVENT_SET_NOTIFICATION_PARAMS params;
+
+	memset(&params, 0, sizeof(params));
+	params.event = event;
+	params.action = action;
+	params.bNotifyState = notify_state;
+	params.info32 = info32;
+	params.info16 = info16;
+	return nvidia_rm_control_raw(fd, h_client, h_subdevice,
+				     NV2080_CTRL_CMD_EVENT_SET_NOTIFICATION,
+				     &params, sizeof(params));
+}
+
 int
 nvidia_rm_control_raw(int fd, NvHandle h_client, NvHandle h_object,
 		      NvV32 cmd, void *params, uint32_t params_size)

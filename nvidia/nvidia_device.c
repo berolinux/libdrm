@@ -655,6 +655,89 @@ nvidia_rm_free(nvidia_device_handle device,
 }
 
 int
+nvidia_rm_dup_object(nvidia_device_handle device,
+		     uint32_t h_parent_dst,
+		     uint32_t *h_object_dst,
+		     uint32_t h_client_src,
+		     uint32_t h_object_src,
+		     uint32_t flags)
+{
+	NvHandle h_new;
+	int ret;
+
+	if (!device || !h_object_dst)
+		return -EINVAL;
+	h_new = *h_object_dst ? *h_object_dst : 0;
+	ret = nvidia_rm_dup_object_raw(device->fd_ctl, device->h_client,
+				       h_parent_dst, &h_new, h_client_src,
+				       h_object_src, flags);
+	if (ret == 0)
+		*h_object_dst = h_new;
+	return ret;
+}
+
+int
+nvidia_rm_get_event_data(nvidia_device_handle device,
+			 uint32_t *h_object_out,
+			 uint32_t *notify_index_out,
+			 uint32_t *info32_out,
+			 uint16_t *info16_out,
+			 uint32_t *more_events_out)
+{
+	NvUnixEvent ev;
+	NvU32 more = 0;
+	int ret;
+
+	if (!device)
+		return -EINVAL;
+	ret = nvidia_rm_get_event_data_raw(device->fd_ctl, &ev, &more);
+	if (ret != 0)
+		return ret;
+	if (h_object_out)
+		*h_object_out = ev.hObject;
+	if (notify_index_out)
+		*notify_index_out = ev.NotifyIndex;
+	if (info32_out)
+		*info32_out = ev.info32;
+	if (info16_out)
+		*info16_out = ev.info16;
+	if (more_events_out)
+		*more_events_out = more;
+	return 0;
+}
+
+int
+nvidia_rm_alloc_event_os(nvidia_device_handle device,
+			 uint32_t h_parent,
+			 uint32_t h_src_resource,
+			 int os_event_fd,
+			 uint32_t notify_index,
+			 uint32_t *h_event_out)
+{
+	if (!device || !h_event_out || os_event_fd < 0)
+		return -EINVAL;
+	return nvidia_rm_alloc_os_event_object_raw(
+		device->fd_ctl, device->h_client, h_parent, h_src_resource,
+		h_event_out, notify_index, os_event_fd);
+}
+
+int
+nvidia_rm_event_set_notification(nvidia_device_handle device,
+				 uint32_t h_subdevice,
+				 uint32_t event,
+				 uint32_t action,
+				 bool notify_state,
+				 uint32_t info32,
+				 uint16_t info16)
+{
+	if (!device || !h_subdevice)
+		return -EINVAL;
+	return nvidia_rm_event_set_notification_raw(
+		device->fd_ctl, device->h_client, h_subdevice, event, action,
+		notify_state ? NV_TRUE : NV_FALSE, info32, info16);
+}
+
+int
 nvidia_rm_control(nvidia_device_handle device,
 		  uint32_t h_object,
 		  uint32_t cmd,

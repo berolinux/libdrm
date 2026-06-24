@@ -178,6 +178,57 @@ int nvidia_rm_free(nvidia_device_handle device,
 		   uint32_t h_object);
 
 /**
+ * tick93: Dup an RM object into this client (NV_ESC_RM_DUP_OBJECT / NVOS55).
+ * h_parent_dst: parent under destination client (often same as h_client for mem).
+ * *h_object_dst: 0 to let RM assign; returns assigned handle.
+ * h_client_src/h_object_src: source (may equal destination client for self-dup).
+ */
+int nvidia_rm_dup_object(nvidia_device_handle device,
+			 uint32_t h_parent_dst,
+			 uint32_t *h_object_dst,
+			 uint32_t h_client_src,
+			 uint32_t h_object_src,
+			 uint32_t flags);
+
+/**
+ * Drain one pending OS event from the RM event queue (NV_ESC_RM_GET_EVENT_DATA).
+ * Fills *h_object / *notify_index / info fields from NvUnixEvent.
+ * *more_events_out: non-zero if more events remain queued.
+ */
+int nvidia_rm_get_event_data(nvidia_device_handle device,
+			     uint32_t *h_object_out,
+			     uint32_t *notify_index_out,
+			     uint32_t *info32_out,
+			     uint16_t *info16_out,
+			     uint32_t *more_events_out);
+
+/**
+ * Allocate NV01_EVENT_OS_EVENT under h_parent (usually subdevice or device),
+ * bound to h_src_resource (object generating events) and Linux event fd.
+ * notify_index: NV2080_NOTIFIERS_* value, optionally OR'd with NV01_EVENT_* flags.
+ * Also call nvidia_rm_alloc_os_event() to associate fd with the device ioctl path.
+ */
+int nvidia_rm_alloc_event_os(nvidia_device_handle device,
+			     uint32_t h_parent,
+			     uint32_t h_src_resource,
+			     int os_event_fd,
+			     uint32_t notify_index,
+			     uint32_t *h_event_out);
+
+/**
+ * Enable/disable subdevice event notification (NV2080_CTRL_CMD_EVENT_SET_NOTIFICATION).
+ * action: NV2080_CTRL_EVENT_SET_NOTIFICATION_ACTION_{DISABLE,SINGLE,REPEAT}.
+ * Requires NV01_EVENT previously bound to the subdevice.
+ */
+int nvidia_rm_event_set_notification(nvidia_device_handle device,
+				     uint32_t h_subdevice,
+				     uint32_t event,
+				     uint32_t action,
+				     bool notify_state,
+				     uint32_t info32,
+				     uint16_t info16);
+
+/**
  * RmControl (NV_ESC_RM_CONTROL / NVOS54).
  * params is an in/out buffer of params_size bytes for the given cmd.
  */
