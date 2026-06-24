@@ -152,6 +152,8 @@ int nvidia_rm_channel_group_schedule_raw(int fd, NvHandle h_client,
 					 NvHandle h_channel_group, NvBool enable);
 void nvidia_gp_entry_pack(NvU32 entry[2], NvU64 gpu_addr, NvU32 length_dwords,
 			  bool wait, bool priv);
+void nvidia_gp_entry_pack_flags(NvU32 entry[2], NvU64 gpu_addr,
+				NvU32 length_dwords, uint32_t flags);
 int nvidia_gpfifo_submit_one(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 			     uint32_t *gpfifo_put_inout,
 			     volatile void *userd,

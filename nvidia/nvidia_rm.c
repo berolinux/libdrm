@@ -784,15 +784,33 @@ void
 nvidia_gp_entry_pack(NvU32 entry[2], NvU64 gpu_addr, NvU32 length_dwords,
 		     bool wait, bool priv)
 {
-	/* NV506F/NVC36F GPFIFO entry: 8 bytes, GET in bits 31:2 of word0 */
+	/*
+	 * NVC36F_GP_ENTRY: word0 GET[31:2] = pb VA >> 2; word1 GET_HI + length +
+	 * PRIV/LEVEL/SYNC.  'wait' maps to SYNC_WAIT (bit 31), not LEVEL_SUBROUTINE
+	 * (bit 9) — older code conflated the two and could mis-encode wait segments.
+	 */
 	entry[0] = (NvU32)((gpu_addr >> NV_GP_ENTRY0_GET_SHIFT) << NV_GP_ENTRY0_GET_SHIFT);
 	entry[1] = ((NvU32)(gpu_addr >> 32) & NV_GP_ENTRY1_GET_HI_MASK) |
 		   ((length_dwords & NV_GP_ENTRY1_LENGTH_MASK) << NV_GP_ENTRY1_LENGTH_SHIFT);
 	if (priv)
 		entry[1] |= (1u << NV_GP_ENTRY1_PRIV_SHIFT);
 	if (wait)
-		entry[1] |= (1u << NV_GP_ENTRY1_LEVEL_SHIFT); /* LEVEL_SUBROUTINE often used with wait semantics on some gens; SYNC is separate on older */
-	(void)wait;
+		entry[1] |= (1u << NV_GP_ENTRY1_SYNC_SHIFT);
+}
+
+void
+nvidia_gp_entry_pack_flags(NvU32 entry[2], NvU64 gpu_addr, NvU32 length_dwords,
+			   uint32_t flags)
+{
+	entry[0] = (NvU32)((gpu_addr >> NV_GP_ENTRY0_GET_SHIFT) << NV_GP_ENTRY0_GET_SHIFT);
+	entry[1] = ((NvU32)(gpu_addr >> 32) & NV_GP_ENTRY1_GET_HI_MASK) |
+		   ((length_dwords & NV_GP_ENTRY1_LENGTH_MASK) << NV_GP_ENTRY1_LENGTH_SHIFT);
+	if (flags & NV_GP_ENTRY_F_PRIV)
+		entry[1] |= (1u << NV_GP_ENTRY1_PRIV_SHIFT);
+	if (flags & NV_GP_ENTRY_F_LEVEL_SUBR)
+		entry[1] |= (1u << NV_GP_ENTRY1_LEVEL_SHIFT);
+	if (flags & NV_GP_ENTRY_F_SYNC_WAIT)
+		entry[1] |= (1u << NV_GP_ENTRY1_SYNC_SHIFT);
 }
 
 /*

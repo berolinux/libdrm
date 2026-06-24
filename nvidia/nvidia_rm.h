@@ -691,7 +691,7 @@ typedef volatile struct {
 	NvU32 GPPut;            /* 0x8c */
 } nvidia_userd_control_t;
 
-/* GPFIFO entry format (NV506F/NVC36F - 8 bytes) */
+/* GPFIFO entry format (NV506F/NVC36F - 8 bytes; see clc36f.h NVC36F_GP_ENTRY*) */
 #define NV_GP_ENTRY_SIZE                8
 #define NV_GP_ENTRY0_GET_SHIFT          2
 #define NV_GP_ENTRY1_GET_HI_MASK        0xff
@@ -699,6 +699,11 @@ typedef volatile struct {
 #define NV_GP_ENTRY1_LEVEL_SHIFT        9
 #define NV_GP_ENTRY1_LENGTH_SHIFT       10
 #define NV_GP_ENTRY1_LENGTH_MASK        0x1fffff
+#define NV_GP_ENTRY1_SYNC_SHIFT         31  /* SYNC_WAIT: wait for prior PB segment */
+/* nvidia_gp_entry_pack flags (OR together) */
+#define NV_GP_ENTRY_F_PRIV              (1u << 0)  /* PRIV_KERNEL */
+#define NV_GP_ENTRY_F_LEVEL_SUBR        (1u << 1)  /* LEVEL_SUBROUTINE */
+#define NV_GP_ENTRY_F_SYNC_WAIT         (1u << 2)  /* SYNC_WAIT before fetch */
 
 /* Class IDs for channel/memory/context */
 #define NV01_ROOT_NON_PRIV              0x00000001

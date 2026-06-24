@@ -337,6 +337,9 @@ int nvidia_rm_gpfifo_get_work_submit_token(nvidia_device_handle device,
 /** Pack an 8-byte GPFIFO entry (NV506F/NVC36F format) into entry[2] */
 void nvidia_gp_entry_pack(uint32_t entry[2], uint64_t gpu_addr,
 			  uint32_t length_dwords, bool wait, bool priv);
+/** wait/priv mapped via NV_GP_ENTRY_F_* flags (SYNC_WAIT separate from LEVEL). */
+void nvidia_gp_entry_pack_flags(uint32_t entry[2], uint64_t gpu_addr,
+				uint32_t length_dwords, uint32_t flags);
 
 /** Allocate FERMI_VASPACE_A on the device (private GPU VA space) */
 int nvidia_rm_vaspace_alloc(nvidia_device_handle device,
