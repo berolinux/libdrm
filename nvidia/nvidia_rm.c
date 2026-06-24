@@ -951,6 +951,39 @@ nvidia_userd_read_gpfifo(volatile void *userd,
 	return 0;
 }
 
+/*
+ * Snapshot USERD ring pointers for bring-up logs (GPGet/GPPut + PB Put/Get).
+ * Returns 0; leaves outs zero if userd is NULL.
+ */
+int
+nvidia_userd_snapshot(volatile void *userd, uint32_t *gp_get_out,
+		      uint32_t *gp_put_out, uint32_t *pb_get_out,
+		      uint32_t *pb_put_out)
+{
+	volatile nvidia_userd_control_t *ud;
+
+	if (gp_get_out)
+		*gp_get_out = 0;
+	if (gp_put_out)
+		*gp_put_out = 0;
+	if (pb_get_out)
+		*pb_get_out = 0;
+	if (pb_put_out)
+		*pb_put_out = 0;
+	if (!userd)
+		return -EINVAL;
+	ud = (volatile nvidia_userd_control_t *)userd;
+	if (gp_get_out)
+		*gp_get_out = ud->GPGet;
+	if (gp_put_out)
+		*gp_put_out = ud->GPPut;
+	if (pb_get_out)
+		*pb_get_out = ud->Get;
+	if (pb_put_out)
+		*pb_put_out = ud->Put;
+	return 0;
+}
+
 uint32_t
 nvidia_gpfifo_ring_space(uint32_t gpfifo_entries,
 			 uint32_t get_idx, uint32_t put_idx)

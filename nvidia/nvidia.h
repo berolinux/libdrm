@@ -444,6 +444,10 @@ int nvidia_userd_wait_gpfifo_idle(volatile void *userd, uint32_t target_put,
 /** Read USERD GPGet/GPPut (optional out pointers). */
 int nvidia_userd_read_gpfifo(volatile void *userd,
 			     uint32_t *get_out, uint32_t *put_out);
+/** Read GPGet/GPPut and PB Get/Put from USERD (bring-up diagnostics). */
+int nvidia_userd_snapshot(volatile void *userd, uint32_t *gp_get_out,
+			  uint32_t *gp_put_out, uint32_t *pb_get_out,
+			  uint32_t *pb_put_out);
 
 /** Free GPFIFO ring slots (one slot reserved as full marker). */
 uint32_t nvidia_gpfifo_ring_space(uint32_t gpfifo_entries,

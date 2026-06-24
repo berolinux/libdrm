@@ -167,6 +167,9 @@ int nvidia_userd_wait_gpfifo_idle(volatile void *userd, uint32_t target_put,
 				  uint64_t timeout_ns);
 int nvidia_userd_read_gpfifo(volatile void *userd,
 			     uint32_t *get_out, uint32_t *put_out);
+int nvidia_userd_snapshot(volatile void *userd, uint32_t *gp_get_out,
+			  uint32_t *gp_put_out, uint32_t *pb_get_out,
+			  uint32_t *pb_put_out);
 uint32_t nvidia_gpfifo_ring_space(uint32_t gpfifo_entries,
 				  uint32_t get_idx, uint32_t put_idx);
 int nvidia_gpfifo_submit_many(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
