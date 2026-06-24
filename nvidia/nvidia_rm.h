@@ -681,6 +681,18 @@ typedef struct {
 	NvU32 index;
 } NVC36F_CTRL_GPFIFO_SET_WORK_SUBMIT_TOKEN_NOTIF_INDEX_PARAMS;
 
+/*
+ * NVC36F_CTRL_CMD_GPFIFO_UPDATE_FAULT_METHOD_BUFFER (ctrlc36f.h 0xc36f0109)
+ * SR-IOV/vGPU guest virtual-channel fault method buffer (bar2Addr[runqueue]).
+ * Pass6 RE: 0 hits in normal glcore/eglcore/cuda — optional/non-fatal for host bring-up.
+ */
+#define NVC36F_CTRL_CMD_GPFIFO_UPDATE_FAULT_METHOD_BUFFER 0xc36f0109
+#define NVC36F_CTRL_CMD_GPFIFO_FAULT_METHOD_BUFFER_MAX_RUNQUEUES 0x2
+
+typedef struct {
+	NvU64 bar2Addr[NVC36F_CTRL_CMD_GPFIFO_FAULT_METHOD_BUFFER_MAX_RUNQUEUES] NV_ALIGN_BYTES(8);
+} NVC36F_CTRL_GPFIFO_UPDATE_FAULT_METHOD_BUFFER_PARAMS;
+
 /* USERD / channel control block layout (Nv906fControl / Nvc36fControl compatible subset) */
 typedef volatile struct {
 	NvU32 Ignored00[0x10];  /* 0x00 - 0x3f */
