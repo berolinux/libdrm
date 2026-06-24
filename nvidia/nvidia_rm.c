@@ -1186,6 +1186,112 @@ nvidia_rm_system_get_platform_type_raw(int fd, NvHandle h_client,
 	return 0;
 }
 
+/* tick99: NV2080_CTRL_CMD_GPU_GET_GID_INFO — UUID for multi-GPU / security */
+int
+nvidia_rm_gpu_get_gid_info_raw(int fd, NvHandle h_client, NvHandle h_subdevice,
+			       char *gid_ascii_out, size_t gid_ascii_sz,
+			       NvU8 *gid_binary_out, NvU32 *gid_binary_len_inout)
+{
+	NV2080_CTRL_GPU_GET_GID_INFO_PARAMS params;
+	int ret;
+	NvU32 copy_len;
+
+	if (!h_client || !h_subdevice)
+		return -EINVAL;
+	if (!gid_ascii_out && !gid_binary_out)
+		return -EINVAL;
+
+	/* ASCII first (canonical "GPU-%08x-..." string) */
+	if (gid_ascii_out && gid_ascii_sz) {
+		memset(&params, 0, sizeof(params));
+		params.flags = NV2080_GPU_CMD_GPU_GET_GID_FLAGS_FORMAT_ASCII |
+			       NV2080_GPU_CMD_GPU_GET_GID_FLAGS_TYPE_SHA1;
+		ret = nvidia_rm_control_raw(fd, h_client, h_subdevice,
+					    NV2080_CTRL_CMD_GPU_GET_GID_INFO,
+					    &params, sizeof(params));
+		if (ret != 0)
+			return ret;
+		copy_len = params.length;
+		if (copy_len >= gid_ascii_sz)
+			copy_len = (NvU32)gid_ascii_sz - 1;
+		if (copy_len > 0)
+			memcpy(gid_ascii_out, params.data, copy_len);
+		gid_ascii_out[copy_len] = '\0';
+		/* NUL-terminate if RM returned non-terminated buffer */
+		if (copy_len > 0 && gid_ascii_out[copy_len - 1] != '\0' &&
+		    copy_len < gid_ascii_sz)
+			gid_ascii_out[copy_len] = '\0';
+	}
+
+	if (gid_binary_out && gid_binary_len_inout && *gid_binary_len_inout) {
+		memset(&params, 0, sizeof(params));
+		params.flags = NV2080_GPU_CMD_GPU_GET_GID_FLAGS_FORMAT_BINARY |
+			       NV2080_GPU_CMD_GPU_GET_GID_FLAGS_TYPE_SHA1;
+		ret = nvidia_rm_control_raw(fd, h_client, h_subdevice,
+					    NV2080_CTRL_CMD_GPU_GET_GID_INFO,
+					    &params, sizeof(params));
+		if (ret != 0)
+			return ret;
+		copy_len = params.length;
+		if (copy_len > *gid_binary_len_inout)
+			copy_len = *gid_binary_len_inout;
+		if (copy_len > NV2080_GPU_MAX_GID_LENGTH)
+			copy_len = NV2080_GPU_MAX_GID_LENGTH;
+		memcpy(gid_binary_out, params.data, copy_len);
+		*gid_binary_len_inout = copy_len;
+	}
+	return 0;
+}
+
+/* tick99: NVOS32 ALLOC_TILED_PITCH_HEIGHT for scanout/2D surfaces */
+int
+nvidia_rm_vidheap_alloc_tiled_raw(int fd, NvHandle h_root, NvHandle h_parent,
+				  NvU32 type, NvU32 flags,
+				  NvU32 width, NvU32 height, NvU32 pitch,
+				  NvU32 attr, NvU32 attr2, NvU32 format,
+				  NvHandle *h_memory, NvU64 *offset, NvU64 *limit,
+				  NvU32 *pitch_out)
+{
+	NVOS32_PARAMETERS p;
+	int ret;
+
+	if (!h_memory)
+		return -EINVAL;
+
+	memset(&p, 0, sizeof(p));
+	p.hRoot = h_root;
+	p.hObjectParent = h_parent;
+	p.function = NVOS32_FUNCTION_ALLOC_TILED_PITCH_HEIGHT;
+	p.status = NV_ERR_GENERIC;
+	p.data.AllocTiledPitchHeight.owner = h_root ? h_root : 0x10de;
+	p.data.AllocTiledPitchHeight.hMemory = *h_memory;
+	p.data.AllocTiledPitchHeight.type = type ? type : NVOS32_TYPE_IMAGE;
+	p.data.AllocTiledPitchHeight.flags = flags |
+		NVOS32_ALLOC_FLAGS_MEMORY_HANDLE_PROVIDED |
+		NVOS32_ALLOC_FLAGS_MAP_NOT_REQUIRED;
+	p.data.AllocTiledPitchHeight.attr = attr ? attr : NV_OS32_ATTR_VIDMEM_4K_UNCACHED;
+	p.data.AllocTiledPitchHeight.attr2 = attr2;
+	p.data.AllocTiledPitchHeight.format = format;
+	p.data.AllocTiledPitchHeight.width = width;
+	p.data.AllocTiledPitchHeight.height = height;
+	p.data.AllocTiledPitchHeight.pitch = pitch;
+
+	ret = rm_ioctl_auto(fd, NV_ESC_RM_VID_HEAP_CONTROL, &p, sizeof(p));
+	if (ret != 0)
+		return -errno;
+	if (p.status != NV_OK)
+		return -(int)p.status;
+
+	*h_memory = p.data.AllocTiledPitchHeight.hMemory;
+	if (offset)
+		*offset = p.data.AllocTiledPitchHeight.offset;
+	if (limit)
+		*limit = p.data.AllocTiledPitchHeight.limit;
+	if (pitch_out)
+		*pitch_out = p.data.AllocTiledPitchHeight.pitch;
+	return 0;
+}
+
 int
 nvidia_rm_map_memory_dma_raw(int fd, NvHandle h_client, NvHandle h_device,
 			     NvHandle h_dma, NvHandle h_memory,

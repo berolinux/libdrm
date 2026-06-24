@@ -400,6 +400,17 @@ nvidia_device_refresh_gpu_info(struct nvidia_device *dev, int gpu_index)
 			info->rm_platform_type = plat;
 	}
 
+	/* tick99: GPU UUID/GID (multi-GPU selection / security) */
+	{
+		NvU32 glen = (NvU32)sizeof(info->gpu_gid_binary);
+
+		if (nvidia_rm_gpu_get_gid_info_raw(
+			    dev->fd_ctl, dev->h_client, dev->h_subdevice,
+			    info->gpu_uuid, sizeof(info->gpu_uuid),
+			    info->gpu_gid_binary, &glen) == 0)
+			info->gpu_gid_binary_len = glen;
+	}
+
 	dev->gpu_info_valid[gpu_index] = true;
 	return 0;
 }
@@ -1324,6 +1335,43 @@ nvidia_rm_system_get_platform_type(nvidia_device_handle device,
 	return nvidia_rm_system_get_platform_type_raw(device->fd_ctl,
 						      device->h_client,
 						      platform_type_out);
+}
+
+int
+nvidia_rm_gpu_get_gid_info(nvidia_device_handle device,
+			   char *gid_ascii_out, size_t gid_ascii_sz,
+			   uint8_t *gid_binary_out, uint32_t *gid_binary_len_inout)
+{
+	if (!device || !device->h_subdevice)
+		return -EINVAL;
+	return nvidia_rm_gpu_get_gid_info_raw(device->fd_ctl, device->h_client,
+					      device->h_subdevice,
+					      gid_ascii_out, gid_ascii_sz,
+					      gid_binary_out, gid_binary_len_inout);
+}
+
+int
+nvidia_rm_vidheap_alloc_tiled(nvidia_device_handle device,
+			      uint32_t type, uint32_t flags,
+			      uint32_t width, uint32_t height, uint32_t pitch,
+			      uint32_t attr, uint32_t attr2, uint32_t format,
+			      uint32_t *h_memory_out, uint64_t *offset_out,
+			      uint64_t *limit_out, uint32_t *pitch_out)
+{
+	NvHandle h_mem;
+	int ret;
+
+	if (!device || !h_memory_out || !device->h_device)
+		return -EINVAL;
+	h_mem = nvidia_device_new_handle(device);
+	ret = nvidia_rm_vidheap_alloc_tiled_raw(device->fd_ctl, device->h_client,
+						device->h_device, type, flags,
+						width, height, pitch, attr, attr2,
+						format, &h_mem, offset_out, limit_out,
+						pitch_out);
+	if (ret == 0)
+		*h_memory_out = h_mem;
+	return ret;
 }
 
 int

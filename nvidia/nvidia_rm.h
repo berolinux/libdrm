@@ -176,7 +176,19 @@ typedef struct {
 #define NV2080_CTRL_CMD_GPU_GET_NAME_STRING         0x20800110
 #define NV2080_CTRL_CMD_GPU_GET_SHORT_NAME_STRING   0x20800111
 #define NV2080_CTRL_CMD_GPU_GET_SIMULATION_INFO     0x20800119
-#define NV2080_CTRL_CMD_GPU_GET_GID_INFO            0x2080012a
+/* tick99: OGKM ctrl2080gpu.h uses 0x2080014a (was mis-coded 0x12a in some trees) */
+#define NV2080_CTRL_CMD_GPU_GET_GID_INFO            0x2080014a
+#define NV2080_GPU_MAX_GID_LENGTH                   0x100u
+#define NV2080_GPU_CMD_GPU_GET_GID_FLAGS_FORMAT_ASCII  0x00000000u
+#define NV2080_GPU_CMD_GPU_GET_GID_FLAGS_FORMAT_BINARY 0x00000002u
+#define NV2080_GPU_CMD_GPU_GET_GID_FLAGS_TYPE_SHA1     0x00000000u
+
+typedef struct {
+	NvU32 index;
+	NvU32 flags;
+	NvU32 length;
+	NvU8  data[NV2080_GPU_MAX_GID_LENGTH];
+} NV2080_CTRL_GPU_GET_GID_INFO_PARAMS;
 #define NV2080_CTRL_CMD_GPU_GET_ENGINES             0x20800123
 #define NV2080_CTRL_CMD_GPU_GET_ENGINES_V2          0x20800170
 #define NV2080_CTRL_CMD_GPU_GET_ENGINE_CLASSLIST    0x20800124
@@ -274,12 +286,28 @@ typedef struct {
 #define NV2080_NOTIFIERS_EVENTBUFFER                0x00000006u
 #define NV2080_NOTIFIERS_RC                         0x00000017u  /* channel RC recovery */
 
-/* NVOS32 vidheap functions */
+/* NVOS32 vidheap functions — exact values from open-gpu-kernel-modules nvos.h */
 #define NVOS32_FUNCTION_ALLOC_SIZE                  2
-#define NVOS32_FUNCTION_FREE                        5
-#define NVOS32_FUNCTION_INFO                        6
-#define NVOS32_FUNCTION_ALLOC_TILED_PITCH_HEIGHT    8
-#define NVOS32_FUNCTION_ALLOC_OS_DESCRIPTOR         12
+#define NVOS32_FUNCTION_FREE                        3
+#define NVOS32_FUNCTION_INFO                        5
+#define NVOS32_FUNCTION_ALLOC_TILED_PITCH_HEIGHT    6
+#define NVOS32_FUNCTION_ALLOC_SIZE_RANGE            14
+#define NVOS32_FUNCTION_REACQUIRE_COMPR             15
+#define NVOS32_FUNCTION_RELEASE_COMPR               16
+#define NVOS32_FUNCTION_GET_MEM_ALIGNMENT           18
+#define NVOS32_FUNCTION_HW_ALLOC                    19
+#define NVOS32_FUNCTION_HW_FREE                     20
+#define NVOS32_FUNCTION_ALLOC_OS_DESCRIPTOR         27
+
+/* NVOS32 descriptor types (for ALLOC_OS_DESCRIPTOR / import paths) */
+#define NVOS32_DESCRIPTOR_TYPE_VIRTUAL_ADDRESS      0
+#define NVOS32_DESCRIPTOR_TYPE_OS_PAGE_ARRAY        1
+#define NVOS32_DESCRIPTOR_TYPE_OS_IO_MEMORY         2
+#define NVOS32_DESCRIPTOR_TYPE_OS_PHYS_ADDR         3
+#define NVOS32_DESCRIPTOR_TYPE_OS_FILE_HANDLE       4
+#define NVOS32_DESCRIPTOR_TYPE_OS_DMA_BUF_PTR       5
+#define NVOS32_DESCRIPTOR_TYPE_OS_SGT_PTR           6
+#define NVOS32_DESCRIPTOR_TYPE_KERNEL_VIRTUAL_ADDRESS 7
 
 #define NVOS32_TYPE_IMAGE                           0
 #define NVOS32_TYPE_DEPTH                           1

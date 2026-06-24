@@ -113,6 +113,10 @@ struct nvidia_gpu_info {
 	uint32_t rm_platform_type;    /* SYSTEM_GET_PLATFORM_TYPE systemType */
 	char     rm_driver_version[64]; /* e.g. "610.43.02" when RM fills buffer */
 	char     rm_build_branch[64];
+	/* tick99: GPU_GET_GID_INFO ASCII UUID (e.g. GPU-xxxxxxxx-xxxx-...) */
+	char     gpu_uuid[48];
+	uint8_t  gpu_gid_binary[16];  /* SHA-1 binary GID when available */
+	uint32_t gpu_gid_binary_len;
 	char     name[64];
 	char     short_name[16];
 	bool     valid;
@@ -567,6 +571,25 @@ int nvidia_rm_system_get_build_version(nvidia_device_handle device,
 /** NV0000_CTRL_CMD_SYSTEM_GET_PLATFORM_TYPE (desktop/mobile/etc). */
 int nvidia_rm_system_get_platform_type(nvidia_device_handle device,
 				       uint32_t *platform_type_out);
+
+/**
+ * tick99: NV2080_CTRL_CMD_GPU_GET_GID_INFO (GPU UUID string / binary SHA-1).
+ * Either output may be NULL. gid_ascii_sz includes space for NUL.
+ */
+int nvidia_rm_gpu_get_gid_info(nvidia_device_handle device,
+			       char *gid_ascii_out, size_t gid_ascii_sz,
+			       uint8_t *gid_binary_out, uint32_t *gid_binary_len_inout);
+
+/**
+ * NVOS32 ALLOC_TILED_PITCH_HEIGHT — 2D/scanout surface on vidheap.
+ * pitch may be 0 (RM computes); pitch_out receives allocated pitch.
+ */
+int nvidia_rm_vidheap_alloc_tiled(nvidia_device_handle device,
+				  uint32_t type, uint32_t flags,
+				  uint32_t width, uint32_t height, uint32_t pitch,
+				  uint32_t attr, uint32_t attr2, uint32_t format,
+				  uint32_t *h_memory_out, uint64_t *offset_out,
+				  uint64_t *limit_out, uint32_t *pitch_out);
 
 /** Map physical/sysmem BO into a VASpace or CTXDMA (NVOS46 / MAP_MEMORY_DMA) */
 int nvidia_rm_map_memory_dma(nvidia_device_handle device,

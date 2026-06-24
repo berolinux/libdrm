@@ -254,6 +254,16 @@ int nvidia_rm_system_get_build_version_raw(int fd, NvHandle h_client,
 					   NvU32 *official_cl_out);
 int nvidia_rm_system_get_platform_type_raw(int fd, NvHandle h_client,
 					   NvU32 *platform_type_out);
+/* tick99: GPU UUID/GID (SHA-1, ASCII "GPU-..." form) */
+int nvidia_rm_gpu_get_gid_info_raw(int fd, NvHandle h_client, NvHandle h_subdevice,
+				   char *gid_ascii_out, size_t gid_ascii_sz,
+				   NvU8 *gid_binary_out, NvU32 *gid_binary_len_inout);
+int nvidia_rm_vidheap_alloc_tiled_raw(int fd, NvHandle h_root, NvHandle h_parent,
+				      NvU32 type, NvU32 flags,
+				      NvU32 width, NvU32 height, NvU32 pitch,
+				      NvU32 attr, NvU32 attr2, NvU32 format,
+				      NvHandle *h_memory, NvU64 *offset, NvU64 *limit,
+				      NvU32 *pitch_out);
 int nvidia_rm_export_object_to_fd_raw(int fd_ctl, NvHandle h_client,
 				      NvHandle h_device, NvHandle h_parent,
 				      NvHandle h_object, int *fd_inout,
