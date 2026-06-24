@@ -835,3 +835,99 @@ nvidia_rm_gpfifo_get_work_submit_token(nvidia_device_handle device,
 							  device->h_client,
 							  h_channel, token_out);
 }
+
+int
+nvidia_rm_vaspace_alloc(nvidia_device_handle device,
+			uint32_t *h_vaspace_out,
+			uint32_t index, uint32_t flags,
+			uint64_t va_size, uint64_t va_base,
+			uint32_t big_page_size,
+			uint64_t *va_size_out, uint64_t *va_base_out)
+{
+	NvHandle h_vas;
+	int ret;
+
+	if (!device || !h_vaspace_out || !device->h_device)
+		return -EINVAL;
+	h_vas = nvidia_device_new_handle(device);
+	ret = nvidia_rm_vaspace_alloc_raw(device->fd_ctl, device->h_client,
+					  device->h_device, &h_vas,
+					  index, flags, va_size, va_base,
+					  big_page_size, va_size_out, va_base_out);
+	if (ret == 0)
+		*h_vaspace_out = h_vas;
+	return ret;
+}
+
+int
+nvidia_rm_map_memory_dma(nvidia_device_handle device,
+			 uint32_t h_device,
+			 uint32_t h_dma,
+			 uint32_t h_memory,
+			 uint64_t offset,
+			 uint64_t length,
+			 uint32_t flags,
+			 uint64_t *dma_offset_inout)
+{
+	if (!device || !h_dma || !h_memory)
+		return -EINVAL;
+	return nvidia_rm_map_memory_dma_raw(device->fd_ctl, device->h_client,
+					    h_device ? h_device : device->h_device,
+					    h_dma, h_memory, offset, length,
+					    flags, dma_offset_inout);
+}
+
+int
+nvidia_rm_unmap_memory_dma(nvidia_device_handle device,
+			   uint32_t h_device,
+			   uint32_t h_dma,
+			   uint32_t h_memory,
+			   uint64_t dma_offset,
+			   uint64_t size,
+			   uint32_t flags)
+{
+	if (!device || !h_dma || !h_memory)
+		return -EINVAL;
+	return nvidia_rm_unmap_memory_dma_raw(device->fd_ctl, device->h_client,
+					      h_device ? h_device : device->h_device,
+					      h_dma, h_memory, dma_offset, size,
+					      flags);
+}
+
+int
+nvidia_rm_usermode_alloc_map(nvidia_device_handle device,
+			     uint32_t *h_usermode_out,
+			     uint32_t *h_class_out,
+			     void **usermode_map_out)
+{
+	NvHandle h_um;
+	NvV32 h_class = 0;
+	void *map = NULL;
+	int ret;
+
+	if (!device || !h_usermode_out || !device->h_subdevice)
+		return -EINVAL;
+
+	h_um = nvidia_device_new_handle(device);
+	ret = nvidia_rm_usermode_alloc_raw(device->fd_ctl, device->h_client,
+					   device->h_subdevice, &h_um, &h_class);
+	if (ret != 0)
+		return ret;
+
+	ret = nvidia_rm_map_memory_raw(device->fd_ctl, device->h_client,
+				       device->h_subdevice, h_um,
+				       0, NVC361_NV_USERMODE__SIZE,
+				       &map, 0);
+	if (ret != 0) {
+		nvidia_rm_free_raw(device->fd_ctl, device->h_client,
+				   device->h_subdevice, h_um);
+		return ret;
+	}
+
+	*h_usermode_out = h_um;
+	if (h_class_out)
+		*h_class_out = h_class;
+	if (usermode_map_out)
+		*usermode_map_out = map;
+	return 0;
+}

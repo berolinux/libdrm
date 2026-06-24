@@ -695,6 +695,84 @@ typedef volatile struct {
 #define NV01_CONTEXT_ERROR_TO_MEMORY    0x00000003
 #define NV_EVENT_BUFFER_CHANNEL         0x0000907e
 
+/* VASpace / virtual memory / usermode doorbell (class headers + nvos.h) */
+#define FERMI_VASPACE_A                 0x000090f1
+#define VOLTA_USERMODE_A                0x0000c361
+#define HOPPER_USERMODE_A               0x0000c661
+#define NVC361_NV_USERMODE__SIZE        65536
+#define NVC361_NOTIFY_CHANNEL_PENDING   0x00000090
+
+#define NV_VASPACE_ALLOCATION_INDEX_GPU_NEW     0x00
+#define NV_VASPACE_ALLOCATION_INDEX_GPU_HOST    0x01
+#define NV_VASPACE_ALLOCATION_INDEX_GPU_GLOBAL  0x02
+#define NV_VASPACE_ALLOCATION_INDEX_GPU_DEVICE  0x03
+#define NV_VASPACE_ALLOCATION_INDEX_GPU_FLA     0x04
+
+#define NV_VASPACE_ALLOCATION_FLAGS_NONE                    0x00000000
+#define NV_VASPACE_ALLOCATION_FLAGS_MINIMIZE_PTETABLE_SIZE  (1u << 0)
+#define NV_VASPACE_ALLOCATION_FLAGS_RETRY_PTE_ALLOC_IN_SYS  (1u << 1)
+#define NV_VASPACE_ALLOCATION_FLAGS_SHARED_MANAGEMENT       (1u << 2)
+#define NV_VASPACE_ALLOCATION_FLAGS_ENABLE_PAGE_FAULTING    (1u << 6)
+
+typedef struct {
+	NvU32   index;
+	NvV32   flags;
+	NvU64   vaSize NV_ALIGN_BYTES(8);
+	NvU64   vaStartInternal NV_ALIGN_BYTES(8);
+	NvU64   vaLimitInternal NV_ALIGN_BYTES(8);
+	NvU32   bigPageSize;
+	NvU64   vaBase NV_ALIGN_BYTES(8);
+	NvU32   pasid;
+} NV_VASPACE_ALLOCATION_PARAMETERS;
+
+/* NVOS46: map memory into a DMA / VASpace (NV_ESC_RM_MAP_MEMORY_DMA) */
+#define NVOS46_FLAGS_ACCESS_READ_WRITE     0x00000000
+#define NVOS46_FLAGS_ACCESS_READ_ONLY      0x00000001
+#define NVOS46_FLAGS_ACCESS_WRITE_ONLY     0x00000002
+#define NVOS46_FLAGS_PAGE_SIZE_DEFAULT     0x00000000
+#define NVOS46_FLAGS_PAGE_SIZE_4KB         (0x00000001u << 8)
+#define NVOS46_FLAGS_PAGE_SIZE_BIG         (0x00000002u << 8)
+#define NVOS46_FLAGS_DMA_OFFSET_FIXED      (1u << 4)
+#define NVOS46_FLAGS_DMA_OFFSET_FIXED_TRUE (1u << 4)
+
+typedef struct {
+	NvHandle hClient;
+	NvHandle hDevice;
+	NvHandle hDma;
+	NvHandle hMemory;
+	NvU64    offset NV_ALIGN_BYTES(8);
+	NvU64    length NV_ALIGN_BYTES(8);
+	NvV32    flags;
+	NvV32    flags2;
+	NvV32    kindOverride;
+	NvU64    dmaOffset NV_ALIGN_BYTES(8);
+	NvV32    status;
+} NVOS46_PARAMETERS;
+
+typedef NVOS46_PARAMETERS NV_MAP_MEMORY_DMA_PARAMETERS;
+
+/* NVOS47: unmap memory from DMA / VASpace */
+#define NVOS47_FLAGS_DEFER_TLB_INVALIDATION_FALSE  0x00000000
+#define NVOS47_FLAGS_DEFER_TLB_INVALIDATION_TRUE   0x00000001
+
+typedef struct {
+	NvHandle hClient;
+	NvHandle hDevice;
+	NvHandle hDma;
+	NvHandle hMemory;
+	NvV32    flags;
+	NvU64    dmaOffset NV_ALIGN_BYTES(8);
+	NvU64    size NV_ALIGN_BYTES(8);
+	NvV32    status;
+} NVOS47_PARAMETERS;
+
+typedef NVOS47_PARAMETERS NV_UNMAP_MEMORY_DMA_PARAMETERS;
+
+/* Hopper usermode alloc params (optional bBar1Mapping etc.) - pass zeroed for defaults */
+typedef struct {
+	NvU32 flags;
+	NvU32 bar1Mapping;
+} NV_HOPPER_USERMODE_A_PARAMS;
 
 /* NV0000_CTRL_GPU_GET_ATTACHED_IDS params */
 #define NV0000_CTRL_GPU_MAX_ATTACHED_GPUS 32

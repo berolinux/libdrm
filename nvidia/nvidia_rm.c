@@ -520,6 +520,156 @@ nvidia_rm_gpfifo_get_work_submit_token_raw(int fd, NvHandle h_client,
 	return ret;
 }
 
+int
+nvidia_rm_vaspace_alloc_raw(int fd, NvHandle h_root, NvHandle h_device,
+			    NvHandle *h_vaspace_out,
+			    NvU32 index, NvU32 flags,
+			    NvU64 va_size, NvU64 va_base,
+			    NvU32 big_page_size,
+			    NvU64 *va_size_out, NvU64 *va_base_out)
+{
+	NV_VASPACE_ALLOCATION_PARAMETERS vp;
+	NvHandle h_vas = 0;
+	int ret;
+
+	if (!h_vaspace_out)
+		return -EINVAL;
+
+	memset(&vp, 0, sizeof(vp));
+	vp.index = index;
+	vp.flags = flags;
+	vp.vaSize = va_size;
+	vp.vaBase = va_base;
+	vp.bigPageSize = big_page_size;
+
+	if (*h_vaspace_out)
+		h_vas = *h_vaspace_out;
+
+	ret = nvidia_rm_alloc_raw(fd, h_root, h_device, &h_vas,
+				  FERMI_VASPACE_A, &vp, sizeof(vp));
+	if (ret != 0)
+		return ret;
+
+	*h_vaspace_out = h_vas;
+	if (va_size_out)
+		*va_size_out = vp.vaSize;
+	if (va_base_out)
+		*va_base_out = vp.vaBase;
+	return 0;
+}
+
+int
+nvidia_rm_map_memory_dma_raw(int fd, NvHandle h_client, NvHandle h_device,
+			     NvHandle h_dma, NvHandle h_memory,
+			     NvU64 offset, NvU64 length, NvU32 flags,
+			     NvU64 *dma_offset_inout)
+{
+	NVOS46_PARAMETERS p;
+	int ret;
+
+	memset(&p, 0, sizeof(p));
+	p.hClient = h_client;
+	p.hDevice = h_device;
+	p.hDma = h_dma;
+	p.hMemory = h_memory;
+	p.offset = offset;
+	p.length = length;
+	p.flags = flags;
+	p.flags2 = 0;
+	p.kindOverride = 0;
+	p.dmaOffset = dma_offset_inout ? *dma_offset_inout : 0;
+	p.status = NV_ERR_GENERIC;
+
+	ret = rm_ioctl_auto(fd, NV_ESC_RM_MAP_MEMORY_DMA, &p, sizeof(p));
+	if (ret != 0)
+		return -errno;
+	if (p.status != NV_OK)
+		return -(int)p.status;
+	if (dma_offset_inout)
+		*dma_offset_inout = p.dmaOffset;
+	return 0;
+}
+
+int
+nvidia_rm_unmap_memory_dma_raw(int fd, NvHandle h_client, NvHandle h_device,
+			       NvHandle h_dma, NvHandle h_memory,
+			       NvU64 dma_offset, NvU64 size, NvU32 flags)
+{
+	NVOS47_PARAMETERS p;
+	int ret;
+
+	memset(&p, 0, sizeof(p));
+	p.hClient = h_client;
+	p.hDevice = h_device;
+	p.hDma = h_dma;
+	p.hMemory = h_memory;
+	p.flags = flags;
+	p.dmaOffset = dma_offset;
+	p.size = size;
+	p.status = NV_ERR_GENERIC;
+
+	ret = rm_ioctl_auto(fd, NV_ESC_RM_UNMAP_MEMORY_DMA, &p, sizeof(p));
+	if (ret != 0)
+		return -errno;
+	if (p.status != NV_OK)
+		return -(int)p.status;
+	return 0;
+}
+
+int
+nvidia_rm_usermode_alloc_raw(int fd, NvHandle h_root, NvHandle h_subdevice,
+			     NvHandle *h_usermode_out, NvV32 *h_class_out)
+{
+	NvHandle h_um = 0;
+	int ret;
+	static const NvV32 classes[] = {
+		HOPPER_USERMODE_A,
+		VOLTA_USERMODE_A,
+	};
+	unsigned i;
+
+	if (!h_usermode_out)
+		return -EINVAL;
+
+	if (*h_usermode_out)
+		h_um = *h_usermode_out;
+
+	for (i = 0; i < sizeof(classes) / sizeof(classes[0]); i++) {
+		NV_HOPPER_USERMODE_A_PARAMS hp;
+		void *parms = NULL;
+		uint32_t parms_size = 0;
+
+		if (classes[i] == HOPPER_USERMODE_A) {
+			memset(&hp, 0, sizeof(hp));
+			parms = &hp;
+			parms_size = sizeof(hp);
+		}
+
+		h_um = *h_usermode_out ? *h_usermode_out : 0;
+		ret = nvidia_rm_alloc_raw(fd, h_root, h_subdevice, &h_um,
+					  classes[i], parms, parms_size);
+		if (ret == 0) {
+			*h_usermode_out = h_um;
+			if (h_class_out)
+				*h_class_out = classes[i];
+			return 0;
+		}
+	}
+	return ret ? ret : -ENODEV;
+}
+
+void
+nvidia_rm_doorbell_ring(volatile void *usermode_map, NvU32 work_submit_token)
+{
+	volatile NvU32 *doorbell;
+
+	if (!usermode_map)
+		return;
+	doorbell = (volatile NvU32 *)((uint8_t *)usermode_map +
+				      NVC361_NOTIFY_CHANNEL_PENDING);
+	*doorbell = work_submit_token;
+}
+
 void
 nvidia_gp_entry_pack(NvU32 entry[2], NvU64 gpu_addr, NvU32 length_dwords,
 		     bool wait, bool priv)

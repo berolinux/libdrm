@@ -337,3 +337,44 @@ int nvidia_rm_gpfifo_get_work_submit_token(nvidia_device_handle device,
 /** Pack an 8-byte GPFIFO entry (NV506F/NVC36F format) into entry[2] */
 void nvidia_gp_entry_pack(uint32_t entry[2], uint64_t gpu_addr,
 			  uint32_t length_dwords, bool wait, bool priv);
+
+/** Allocate FERMI_VASPACE_A on the device (private GPU VA space) */
+int nvidia_rm_vaspace_alloc(nvidia_device_handle device,
+			    uint32_t *h_vaspace_out,
+			    uint32_t index, uint32_t flags,
+			    uint64_t va_size, uint64_t va_base,
+			    uint32_t big_page_size,
+			    uint64_t *va_size_out, uint64_t *va_base_out);
+
+/** Map physical/sysmem BO into a VASpace or CTXDMA (NVOS46 / MAP_MEMORY_DMA) */
+int nvidia_rm_map_memory_dma(nvidia_device_handle device,
+			     uint32_t h_device,
+			     uint32_t h_dma,
+			     uint32_t h_memory,
+			     uint64_t offset,
+			     uint64_t length,
+			     uint32_t flags,
+			     uint64_t *dma_offset_inout);
+
+/** Unmap a prior NVOS46 mapping (NVOS47) */
+int nvidia_rm_unmap_memory_dma(nvidia_device_handle device,
+			       uint32_t h_device,
+			       uint32_t h_dma,
+			       uint32_t h_memory,
+			       uint64_t dma_offset,
+			       uint64_t size,
+			       uint32_t flags);
+
+/**
+ * Allocate VOLTA_USERMODE_A / HOPPER_USERMODE_A on the subdevice and CPU-map it.
+ * *usermode_map_out receives the mapped page; ring doorbell via
+ * nvidia_rm_doorbell_ring(map, work_submit_token).
+ */
+int nvidia_rm_usermode_alloc_map(nvidia_device_handle device,
+				 uint32_t *h_usermode_out,
+				 uint32_t *h_class_out,
+				 void **usermode_map_out);
+
+/** Write work_submit_token to NVC361_NOTIFY_CHANNEL_PENDING in usermode region */
+void nvidia_rm_doorbell_ring(volatile void *usermode_map,
+			     uint32_t work_submit_token);
