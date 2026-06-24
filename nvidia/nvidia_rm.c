@@ -666,9 +666,12 @@ nvidia_rm_doorbell_ring(volatile void *usermode_map, NvU32 work_submit_token)
 
 	if (!usermode_map)
 		return;
+	/* NVC361_NOTIFY_CHANNEL_PENDING: write work_submit_token to wake channel */
 	doorbell = (volatile NvU32 *)((uint8_t *)usermode_map +
 				      NVC361_NOTIFY_CHANNEL_PENDING);
+	__sync_synchronize();
 	*doorbell = work_submit_token;
+	__sync_synchronize();
 }
 
 int
@@ -847,6 +850,8 @@ nvidia_gpfifo_submit_one(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 	__sync_synchronize();
 
 	*gpfifo_put_inout = next_put;
+	/* Publish GPPut then doorbell (order matters for Volta+ usermode kick) */
+	__sync_synchronize();
 	ud->GPPut = next_put;
 	__sync_synchronize();
 
@@ -1116,12 +1121,37 @@ nvidia_submit_wait_complete(volatile void *userd, uint32_t target_put,
 			    volatile void *notifier, uint64_t timeout_ns)
 {
 	int r;
+	int sema_r = 0;
 
-	/* Prefer sema completion (CE/QMD/3D release) over coarse GPGet drain */
+	/*
+	 * Wait order for G1/G2/G3 bring-up:
+	 *  1) sema GEQ if sema_cpu+payload (CE/QMD/3D release is the real done signal)
+	 *  2) optionally also drain GPFIFO (helps distinguish sema miss vs hung ring)
+	 *  3) non-blocking notifier peek for channel error
+	 *
+	 * If sema times out, still try GPFIFO idle with remaining budget so logs
+	 * can see whether the ring advanced (caller sees sema failure first).
+	 */
 	if (sema_cpu && sema_payload) {
-		r = nvidia_sema_wait_geq(sema_cpu, sema_payload, timeout_ns);
-		if (r)
-			return r;
+		sema_r = nvidia_sema_wait_geq(sema_cpu, sema_payload, timeout_ns);
+		if (userd && sema_r != 0) {
+			/* Short GPFIFO poll for diagnostics; ignore result */
+			(void)nvidia_userd_wait_gpfifo_idle(userd, target_put,
+							    timeout_ns > 100000000ull
+								    ? 100000000ull
+								    : timeout_ns);
+		} else if (userd && sema_r == 0 && timeout_ns) {
+			/*
+			 * Sema ok: best-effort GPFIFO drain so later submits see
+			 * idle ring (non-fatal if GPGet lags slightly).
+			 */
+			(void)nvidia_userd_wait_gpfifo_idle(userd, target_put,
+							    timeout_ns > 500000000ull
+								    ? 500000000ull
+								    : timeout_ns);
+		}
+		if (sema_r)
+			return sema_r;
 	} else if (userd) {
 		r = nvidia_userd_wait_gpfifo_idle(userd, target_put, timeout_ns);
 		if (r)
