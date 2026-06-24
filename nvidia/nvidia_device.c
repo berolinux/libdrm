@@ -1301,6 +1301,59 @@ nvidia_rm_context_dma_alloc(nvidia_device_handle device,
 }
 
 int
+nvidia_rm_bind_context_dma(nvidia_device_handle device,
+			   uint32_t h_channel,
+			   uint32_t h_ctxdma)
+{
+	if (!device || !h_channel || !h_ctxdma)
+		return -EINVAL;
+	return nvidia_rm_bind_context_dma_raw(device->fd_ctl, device->h_client,
+					      h_channel, h_ctxdma);
+}
+
+int
+nvidia_rm_idle_channel(nvidia_device_handle device,
+		       uint32_t h_channel,
+		       uint32_t flags,
+		       uint32_t timeout_us)
+{
+	if (!device || !h_channel || !device->h_device)
+		return -EINVAL;
+	return nvidia_rm_idle_channel_raw(device->fd_ctl, device->h_client,
+					  device->h_device, h_channel, flags,
+					  timeout_us);
+}
+
+int
+nvidia_rm_memory_virtual_alloc(nvidia_device_handle device,
+			       uint32_t h_parent,
+			       uint32_t *h_memory_out,
+			       uint32_t h_vaspace,
+			       uint64_t offset,
+			       uint64_t *limit_inout,
+			       uint32_t h_class)
+{
+	NvHandle h_mem;
+	NvU64 lim;
+	int ret;
+
+	if (!device || !h_memory_out)
+		return -EINVAL;
+	h_mem = nvidia_device_new_handle(device);
+	lim = limit_inout ? *limit_inout : 0;
+	ret = nvidia_rm_memory_virtual_alloc_raw(
+		device->fd_ctl, device->h_client,
+		h_parent ? h_parent : device->h_device, &h_mem, h_vaspace,
+		offset, &lim, h_class);
+	if (ret == 0) {
+		*h_memory_out = h_mem;
+		if (limit_inout)
+			*limit_inout = lim;
+	}
+	return ret;
+}
+
+int
 nvidia_rm_channel_group_alloc(nvidia_device_handle device,
 			      uint32_t *h_group_out,
 			      uint32_t h_object_error,

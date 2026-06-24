@@ -1224,6 +1224,96 @@ nvidia_rm_context_dma_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
 	return 0;
 }
 
+/* tick94: NV_ESC_RM_BIND_CONTEXT_DMA (NVOS49) */
+int
+nvidia_rm_bind_context_dma_raw(int fd, NvHandle h_client, NvHandle h_channel,
+			       NvHandle h_ctxdma)
+{
+	NVOS49_PARAMETERS p;
+	int ret;
+
+	if (!h_client || !h_channel || !h_ctxdma)
+		return -EINVAL;
+	memset(&p, 0, sizeof(p));
+	p.hClient = h_client;
+	p.hChannel = h_channel;
+	p.hCtxDma = h_ctxdma;
+	p.status = NV_ERR_GENERIC;
+	ret = rm_ioctl_auto(fd, NV_ESC_RM_BIND_CONTEXT_DMA, &p, sizeof(p));
+	if (ret != 0)
+		return -errno;
+	if (p.status != NV_OK)
+		return -(int)p.status;
+	return 0;
+}
+
+/* tick94: NV_ESC_RM_IDLE_CHANNELS (NVOS30) — single channel via hChannel field */
+int
+nvidia_rm_idle_channel_raw(int fd, NvHandle h_client, NvHandle h_device,
+			   NvHandle h_channel, NvU32 flags, NvU32 timeout_us)
+{
+	NVOS30_PARAMETERS p;
+	int ret;
+
+	if (!h_client || !h_device || !h_channel)
+		return -EINVAL;
+	memset(&p, 0, sizeof(p));
+	p.hClient = h_client;
+	p.hDevice = h_device;
+	p.hChannel = h_channel;
+	p.numChannels = 1;
+	p.phClients = 0;
+	p.phDevices = 0;
+	p.phChannels = 0;
+	p.flags = flags ? flags : NVOS30_FLAGS_HELPER_SPIN_SINGLE_PB;
+	p.timeout = timeout_us;
+	p.status = NV_ERR_GENERIC;
+	ret = rm_ioctl_auto(fd, NV_ESC_RM_IDLE_CHANNELS, &p, sizeof(p));
+	if (ret != 0)
+		return -errno;
+	if (p.status != NV_OK)
+		return -(int)p.status;
+	return 0;
+}
+
+/* tick94: RmAlloc NV01_MEMORY_VIRTUAL / NV50_MEMORY_VIRTUAL */
+int
+nvidia_rm_memory_virtual_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
+				   NvHandle *h_memory_out, NvHandle h_vaspace,
+				   NvU64 offset, NvU64 *limit_inout,
+				   NvV32 h_class)
+{
+	NV_MEMORY_VIRTUAL_ALLOCATION_PARAMS vp;
+	NvHandle h_mem = 0;
+	int ret;
+
+	if (!h_memory_out)
+		return -EINVAL;
+	memset(&vp, 0, sizeof(vp));
+	vp.offset = offset;
+	vp.limit = limit_inout ? *limit_inout : 0;
+	vp.hVASpace = h_vaspace;
+
+	if (*h_memory_out)
+		h_mem = *h_memory_out;
+
+	ret = nvidia_rm_alloc_raw(fd, h_root, h_parent, &h_mem,
+				  h_class ? h_class : NV01_MEMORY_VIRTUAL,
+				  &vp, sizeof(vp));
+	if (ret != 0) {
+		/* Fallback: NV50_MEMORY_VIRTUAL class id */
+		h_mem = *h_memory_out ? *h_memory_out : 0;
+		ret = nvidia_rm_alloc_raw(fd, h_root, h_parent, &h_mem,
+					  NV50_MEMORY_VIRTUAL, &vp, sizeof(vp));
+	}
+	if (ret != 0)
+		return ret;
+	*h_memory_out = h_mem;
+	if (limit_inout)
+		*limit_inout = vp.limit;
+	return 0;
+}
+
 int
 nvidia_rm_channel_group_alloc_raw(int fd, NvHandle h_root, NvHandle h_device,
 				  NvHandle *h_group_out,

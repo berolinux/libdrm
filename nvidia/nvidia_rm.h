@@ -62,6 +62,7 @@ typedef NvU8     NvBool;
 #define NV_ESC_RM_ALLOC                             0x2B
 #define NV_ESC_RM_DUP_OBJECT                        0x34
 #define NV_ESC_RM_SHARE                             0x35
+#define NV_ESC_RM_IDLE_CHANNELS                     0x41
 #define NV_ESC_RM_VID_HEAP_CONTROL                  0x4A
 #define NV_ESC_RM_ACCESS_REGISTRY                   0x4D
 #define NV_ESC_RM_MAP_MEMORY                        0x4E
@@ -892,6 +893,45 @@ typedef struct {
 	NvU64    offset NV_ALIGN_BYTES(8);
 	NvU64    limit NV_ALIGN_BYTES(8);
 } NV_CONTEXT_DMA_ALLOCATION_PARAMS;
+
+/* tick94: NVOS49 bind context DMA to channel (NV_ESC_RM_BIND_CONTEXT_DMA) */
+typedef struct {
+	NvHandle hClient;
+	NvHandle hChannel;
+	NvHandle hCtxDma;
+	NvV32    status;
+} NVOS49_PARAMETERS;
+
+/* tick94: NVOS30 idle channels (NV_ESC_RM_IDLE_CHANNELS) — single-channel helper */
+typedef struct {
+	NvHandle hClient;
+	NvHandle hDevice;
+	NvHandle hChannel;
+	NvV32    numChannels;
+	NvU64    phClients NV_ALIGN_BYTES(8);
+	NvU64    phDevices NV_ALIGN_BYTES(8);
+	NvU64    phChannels NV_ALIGN_BYTES(8);
+	NvV32    flags;
+	NvV32    timeout;
+	NvV32    status;
+} NVOS30_PARAMETERS;
+
+#define NVOS30_FLAGS_BEHAVIOR_SPIN           0x00000000u
+#define NVOS30_FLAGS_BEHAVIOR_SLEEP          0x00000001u
+#define NVOS30_FLAGS_BEHAVIOR_QUERY          0x00000002u
+#define NVOS30_FLAGS_CHANNEL_SINGLE          0x00000010u  /* bit 4 set in CHANNEL field */
+#define NVOS30_FLAGS_IDLE_PUSH_BUFFER        0x00000100u  /* shifted IDLE field; use composed flags */
+/* Practical composed flag: spin + single channel + push buffer idle */
+#define NVOS30_FLAGS_HELPER_SPIN_SINGLE_PB   0x00000110u
+
+/* tick94: NV01_MEMORY_VIRTUAL (see line ~90) / NV50_MEMORY_VIRTUAL alloc params */
+#define NV_MEMORY_VIRTUAL_SYSMEM_DYNAMIC_HVASPACE 0xffffffffu
+
+typedef struct {
+	NvU64    offset NV_ALIGN_BYTES(8);
+	NvU64    limit NV_ALIGN_BYTES(8);
+	NvHandle hVASpace;
+} NV_MEMORY_VIRTUAL_ALLOCATION_PARAMS;
 
 /* NV_CHANNEL_GROUP_ALLOCATION_PARAMETERS (Kepler+ TSG) */
 typedef struct {

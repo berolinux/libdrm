@@ -217,6 +217,15 @@ int nvidia_rm_context_dma_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
 				    NvHandle *h_ctxdma_out, NvV32 h_class,
 				    NvHandle h_subdevice, NvHandle h_memory,
 				    NvU64 offset, NvU64 limit, NvU32 flags);
+/* tick94 */
+int nvidia_rm_bind_context_dma_raw(int fd, NvHandle h_client, NvHandle h_channel,
+				   NvHandle h_ctxdma);
+int nvidia_rm_idle_channel_raw(int fd, NvHandle h_client, NvHandle h_device,
+			       NvHandle h_channel, NvU32 flags, NvU32 timeout_us);
+int nvidia_rm_memory_virtual_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
+				       NvHandle *h_memory_out, NvHandle h_vaspace,
+				       NvU64 offset, NvU64 *limit_inout,
+				       NvV32 h_class);
 int nvidia_rm_channel_group_alloc_raw(int fd, NvHandle h_root, NvHandle h_device,
 				      NvHandle *h_group_out,
 				      NvHandle h_object_error,

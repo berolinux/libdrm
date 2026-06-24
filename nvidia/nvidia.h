@@ -542,6 +542,38 @@ void nvidia_rm_doorbell_ring(volatile void *usermode_map,
  * Allocate NV01_CONTEXT_ERROR_TO_MEMORY (or FROM_MEMORY) over an existing
  * memory object; used for channel error notifiers.
  */
+/**
+ * tick94: Bind an allocated CTXDMA to a channel (NVOS49 / NV_ESC_RM_BIND_CONTEXT_DMA).
+ * Required before some engines can reference error/notify CTXDMA on the channel.
+ */
+int nvidia_rm_bind_context_dma(nvidia_device_handle device,
+			       uint32_t h_channel,
+			       uint32_t h_ctxdma);
+
+/**
+ * tick94: Idle a single channel (NVOS30 / NV_ESC_RM_IDLE_CHANNELS).
+ * flags: NVOS30_FLAGS_*; timeout_us: GPU timeout (0 = RM default).
+ * Prefer NV0080_CTRL_CMD_FIFO_IDLE_CHANNELS for device-level multi-channel idle.
+ */
+int nvidia_rm_idle_channel(nvidia_device_handle device,
+			   uint32_t h_channel,
+			   uint32_t flags,
+			   uint32_t timeout_us);
+
+/**
+ * tick94: Allocate NV01_MEMORY_VIRTUAL (or NV50_MEMORY_VIRTUAL) covering a VA range.
+ * h_vaspace: FERMI_VASPACE_A handle, or 0 for default GPU VAS; use
+ * NV_MEMORY_VIRTUAL_SYSMEM_DYNAMIC_HVASPACE for dynamic-sysmem compat.
+ * *limit_inout: 0 = max limit (returned); non-zero requested limit.
+ */
+int nvidia_rm_memory_virtual_alloc(nvidia_device_handle device,
+				   uint32_t h_parent,
+				   uint32_t *h_memory_out,
+				   uint32_t h_vaspace,
+				   uint64_t offset,
+				   uint64_t *limit_inout,
+				   uint32_t h_class);
+
 int nvidia_rm_context_dma_alloc(nvidia_device_handle device,
 				uint32_t h_parent,
 				uint32_t *h_ctxdma_out,
