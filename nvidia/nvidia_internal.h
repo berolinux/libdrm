@@ -241,6 +241,10 @@ int nvidia_rm_bus_get_pci_info_raw(int fd, NvHandle h_client, NvHandle h_subdevi
 				   NvU32 *pci_device_id_out,
 				   NvU32 *pci_subsystem_id_out,
 				   NvU32 *pci_revision_id_out);
+/* tick97: NVOS57 share + VAS big-page normalizer */
+uint32_t nvidia_rm_vaspace_normalize_big_page(uint64_t max_page_size);
+int nvidia_rm_share_object_raw(int fd, NvHandle h_client, NvHandle h_object,
+			       const RS_SHARE_POLICY *policy);
 int nvidia_rm_export_object_to_fd_raw(int fd_ctl, NvHandle h_client,
 				      NvHandle h_device, NvHandle h_parent,
 				      NvHandle h_object, int *fd_inout,

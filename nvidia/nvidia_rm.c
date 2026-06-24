@@ -1004,6 +1004,31 @@ nvidia_rm_gpfifo_set_work_submit_token_notif_index_raw(int fd, NvHandle h_client
 				     &params, sizeof(params));
 }
 
+/*
+ * tick97: Clamp/quantize GPU_GET_MAX_SUPPORTED_PAGE_SIZE into a legal
+ * FERMI_VASPACE_A bigPageSize (0 = let RM choose default).
+ * Prefer largest power-of-two bucket <= max_page_size among 64K/128K/2M/512M.
+ */
+uint32_t
+nvidia_rm_vaspace_normalize_big_page(uint64_t max_page_size)
+{
+	static const uint32_t buckets[] = {
+		NV_VASPACE_BIG_PAGE_SIZE_512M,
+		NV_VASPACE_BIG_PAGE_SIZE_2M,
+		NV_VASPACE_BIG_PAGE_SIZE_128K,
+		NV_VASPACE_BIG_PAGE_SIZE_64K,
+	};
+	unsigned i;
+
+	if (max_page_size == 0)
+		return NV_VASPACE_BIG_PAGE_SIZE_DEFAULT;
+	for (i = 0; i < sizeof(buckets) / sizeof(buckets[0]); i++) {
+		if (max_page_size >= buckets[i])
+			return buckets[i];
+	}
+	return NV_VASPACE_BIG_PAGE_SIZE_DEFAULT;
+}
+
 int
 nvidia_rm_vaspace_alloc_raw(int fd, NvHandle h_root, NvHandle h_device,
 			    NvHandle *h_vaspace_out,
@@ -1039,6 +1064,31 @@ nvidia_rm_vaspace_alloc_raw(int fd, NvHandle h_root, NvHandle h_device,
 		*va_size_out = vp.vaSize;
 	if (va_base_out)
 		*va_base_out = vp.vaBase;
+	return 0;
+}
+
+/* tick97: NV_ESC_RM_SHARE (NVOS57) — apply RS_SHARE_POLICY to an RM object */
+int
+nvidia_rm_share_object_raw(int fd, NvHandle h_client, NvHandle h_object,
+			   const RS_SHARE_POLICY *policy)
+{
+	NVOS57_PARAMETERS p;
+	int ret;
+
+	if (!policy || !h_client || !h_object)
+		return -EINVAL;
+
+	memset(&p, 0, sizeof(p));
+	p.hClient = h_client;
+	p.hObject = h_object;
+	p.sharePolicy = *policy;
+	p.status = NV_ERR_GENERIC;
+
+	ret = rm_ioctl_auto(fd, NV_ESC_RM_SHARE, &p, sizeof(p));
+	if (ret != 0)
+		return -errno;
+	if (p.status != NV_OK)
+		return -(int)p.status;
 	return 0;
 }
 

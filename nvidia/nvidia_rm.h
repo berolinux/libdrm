@@ -1110,11 +1110,28 @@ typedef struct {
 #define NV_VASPACE_ALLOCATION_INDEX_GPU_DEVICE  0x03
 #define NV_VASPACE_ALLOCATION_INDEX_GPU_FLA     0x04
 
-#define NV_VASPACE_ALLOCATION_FLAGS_NONE                    0x00000000
-#define NV_VASPACE_ALLOCATION_FLAGS_MINIMIZE_PTETABLE_SIZE  (1u << 0)
-#define NV_VASPACE_ALLOCATION_FLAGS_RETRY_PTE_ALLOC_IN_SYS  (1u << 1)
-#define NV_VASPACE_ALLOCATION_FLAGS_SHARED_MANAGEMENT       (1u << 2)
-#define NV_VASPACE_ALLOCATION_FLAGS_ENABLE_PAGE_FAULTING    (1u << 6)
+/* nvos.h NV_VASPACE_ALLOCATION_FLAGS_* (tick97: full set for HW bring-up) */
+#define NV_VASPACE_ALLOCATION_FLAGS_NONE                         0x00000000u
+#define NV_VASPACE_ALLOCATION_FLAGS_MINIMIZE_PTETABLE_SIZE       (1u << 0)
+#define NV_VASPACE_ALLOCATION_FLAGS_RETRY_PTE_ALLOC_IN_SYS       (1u << 1)
+#define NV_VASPACE_ALLOCATION_FLAGS_SHARED_MANAGEMENT            (1u << 2)
+#define NV_VASPACE_ALLOCATION_FLAGS_IS_EXTERNALLY_OWNED          (1u << 3)
+#define NV_VASPACE_ALLOCATION_FLAGS_ENABLE_NVLINK_ATS            (1u << 4)
+#define NV_VASPACE_ALLOCATION_FLAGS_ENABLE_PAGE_FAULTING         (1u << 6)
+#define NV_VASPACE_ALLOCATION_FLAGS_VA_INTERNAL_LIMIT            (1u << 7)
+#define NV_VASPACE_ALLOCATION_FLAGS_ALLOW_ZERO_ADDRESS           (1u << 8)
+#define NV_VASPACE_ALLOCATION_FLAGS_IS_FLA                       (1u << 9)
+#define NV_VASPACE_ALLOCATION_FLAGS_SKIP_SCRUB_MEMPOOL           (1u << 10)
+#define NV_VASPACE_ALLOCATION_FLAGS_OPTIMIZE_PTETABLE_MEMPOOL_USAGE (1u << 11)
+#define NV_VASPACE_ALLOCATION_FLAGS_REQUIRE_FIXED_OFFSET         (1u << 12)
+#define NV_VASPACE_ALLOCATION_FLAGS_PTETABLE_HEAP_MANAGED        (1u << 13)
+
+/* Common FERMI_VASPACE_A bigPageSize values (0 = RM default) */
+#define NV_VASPACE_BIG_PAGE_SIZE_DEFAULT   0u
+#define NV_VASPACE_BIG_PAGE_SIZE_64K       (64u * 1024u)
+#define NV_VASPACE_BIG_PAGE_SIZE_128K      (128u * 1024u)
+#define NV_VASPACE_BIG_PAGE_SIZE_2M        (2u * 1024u * 1024u)
+#define NV_VASPACE_BIG_PAGE_SIZE_512M      (512u * 1024u * 1024u)
 
 typedef struct {
 	NvU32   index;
@@ -1126,6 +1143,46 @@ typedef struct {
 	NvU64   vaBase NV_ALIGN_BYTES(8);
 	NvU32   pasid;
 } NV_VASPACE_ALLOCATION_PARAMETERS;
+
+/* tick97: NVOS57 / NV_ESC_RM_SHARE — RS_SHARE_POLICY (rs_access.h + nvos.h) */
+#define RS_ACCESS_DUP_OBJECT  0u
+#define RS_ACCESS_NICE        1u
+#define RS_ACCESS_DEBUG       2u
+#define RS_ACCESS_PERFMON     3u
+#define RS_ACCESS_COUNT       4u
+#define SDK_RS_ACCESS_MAX_LIMBS 1
+
+typedef struct {
+	NvU32 limbs[SDK_RS_ACCESS_MAX_LIMBS];
+} RS_ACCESS_MASK;
+
+#define RS_SHARE_TYPE_NONE              0u
+#define RS_SHARE_TYPE_ALL               1u
+#define RS_SHARE_TYPE_OS_SECURITY_TOKEN 2u
+#define RS_SHARE_TYPE_CLIENT            3u
+#define RS_SHARE_TYPE_PID               4u
+#define RS_SHARE_TYPE_SMC_PARTITION     5u
+#define RS_SHARE_TYPE_GPU               6u
+#define RS_SHARE_TYPE_FM_CLIENT         7u
+#define RS_SHARE_TYPE_MAX               8u
+
+#define RS_SHARE_ACTION_FLAG_REVOKE     (1u << 0)
+#define RS_SHARE_ACTION_FLAG_REQUIRE    (1u << 1)
+#define RS_SHARE_ACTION_FLAG_COMPOSE    (1u << 2)
+
+typedef struct {
+	NvU32          target;
+	RS_ACCESS_MASK accessMask;
+	NvU16          type;   /* RS_SHARE_TYPE_* */
+	NvU8           action; /* RS_SHARE_ACTION_FLAG_* */
+} RS_SHARE_POLICY;
+
+typedef struct {
+	NvHandle        hClient;
+	NvHandle        hObject;
+	RS_SHARE_POLICY sharePolicy;
+	NvU32           status;
+} NVOS57_PARAMETERS;
 
 /* NVOS46: map memory into a DMA / VASpace (NV_ESC_RM_MAP_MEMORY_DMA) */
 #define NVOS46_FLAGS_ACCESS_READ_WRITE     0x00000000

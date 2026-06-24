@@ -505,6 +505,12 @@ bool nvidia_gpfifo_class_needs_doorbell(uint32_t gpfifo_class);
 /** Zero USERD (incl. GPGet/GPPut) before first GPFIFO submit; userd_bytes >= 0x90. */
 void nvidia_userd_init_host(volatile void *userd, size_t userd_bytes);
 
+/**
+ * Map GPU_GET_MAX_SUPPORTED_PAGE_SIZE (or any max) to FERMI_VASPACE_A bigPageSize.
+ * Returns 0 for RM default when max is 0 or below 64K.
+ */
+uint32_t nvidia_rm_vaspace_normalize_big_page(uint64_t max_page_size);
+
 /** Allocate FERMI_VASPACE_A on the device (private GPU VA space) */
 int nvidia_rm_vaspace_alloc(nvidia_device_handle device,
 			    uint32_t *h_vaspace_out,
@@ -512,6 +518,33 @@ int nvidia_rm_vaspace_alloc(nvidia_device_handle device,
 			    uint64_t va_size, uint64_t va_base,
 			    uint32_t big_page_size,
 			    uint64_t *va_size_out, uint64_t *va_base_out);
+
+/* tick97: public mirror of RS_SHARE_POLICY / NVOS57 (rs_access.h + nvos.h) */
+#define NVIDIA_RS_ACCESS_DUP_OBJECT  0u
+#define NVIDIA_RS_SHARE_TYPE_ALL     1u
+#define NVIDIA_RS_SHARE_TYPE_CLIENT  3u
+#define NVIDIA_RS_SHARE_TYPE_PID     4u
+#define NVIDIA_RS_SHARE_ACTION_COMPOSE (1u << 2)
+
+struct nvidia_rm_share_policy {
+	uint32_t target;
+	uint32_t access_mask_limb0; /* RS_ACCESS_MASK.limbs[0] */
+	uint16_t type;              /* RS_SHARE_TYPE_* */
+	uint8_t  action;            /* RS_SHARE_ACTION_FLAG_* */
+	uint8_t  _pad;
+};
+
+/**
+ * tick97: NVOS57 / NV_ESC_RM_SHARE — share RM object rights.
+ */
+int nvidia_rm_share_object(nvidia_device_handle device, uint32_t h_object,
+			   const struct nvidia_rm_share_policy *policy);
+
+/**
+ * Convenience: share h_object with all clients, DUP access, compose action.
+ * Useful for export/FD paths that need explicit share policy.
+ */
+int nvidia_rm_share_object_all_dup(nvidia_device_handle device, uint32_t h_object);
 
 /** Map physical/sysmem BO into a VASpace or CTXDMA (NVOS46 / MAP_MEMORY_DMA) */
 int nvidia_rm_map_memory_dma(nvidia_device_handle device,

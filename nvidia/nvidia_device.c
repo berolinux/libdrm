@@ -1240,6 +1240,38 @@ nvidia_rm_vaspace_alloc(nvidia_device_handle device,
 }
 
 int
+nvidia_rm_share_object(nvidia_device_handle device, uint32_t h_object,
+		       const struct nvidia_rm_share_policy *policy)
+{
+	RS_SHARE_POLICY pol;
+
+	if (!device || !h_object || !policy)
+		return -EINVAL;
+	memset(&pol, 0, sizeof(pol));
+	pol.target = policy->target;
+	pol.accessMask.limbs[0] = policy->access_mask_limb0;
+	pol.type = policy->type;
+	pol.action = policy->action;
+	return nvidia_rm_share_object_raw(device->fd_ctl, device->h_client,
+					  (NvHandle)h_object, &pol);
+}
+
+int
+nvidia_rm_share_object_all_dup(nvidia_device_handle device, uint32_t h_object)
+{
+	struct nvidia_rm_share_policy pol;
+
+	if (!device || !h_object)
+		return -EINVAL;
+	memset(&pol, 0, sizeof(pol));
+	pol.type = NVIDIA_RS_SHARE_TYPE_ALL;
+	pol.action = NVIDIA_RS_SHARE_ACTION_COMPOSE;
+	pol.target = 0;
+	pol.access_mask_limb0 = (1u << NVIDIA_RS_ACCESS_DUP_OBJECT);
+	return nvidia_rm_share_object(device, h_object, &pol);
+}
+
+int
 nvidia_rm_map_memory_dma(nvidia_device_handle device,
 			 uint32_t h_device,
 			 uint32_t h_dma,
