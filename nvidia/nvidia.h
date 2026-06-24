@@ -554,6 +554,12 @@ nvidia_smoke_present_wait(volatile void *userd, uint32_t target_put,
 #define NVIDIA_SMOKE_G2_REGS_DEFAULT      16u
 #define NVIDIA_SMOKE_G2_SASS_DEFAULT      0x86u
 
+/* G3 3D clear/draw sema (pairs with mesa nv_channel_g3_* / nv_smoke_selftest_g3_*) */
+#define NVIDIA_SMOKE_G3_CT_GPU_DEFAULT    0x500000ull
+#define NVIDIA_SMOKE_G3_SEMA_GPU_DEFAULT  0x300000ull
+#define NVIDIA_SMOKE_G3_CT_W_DEFAULT      64u
+#define NVIDIA_SMOKE_G3_CT_H_DEFAULT      64u
+
 static inline int
 nvidia_smoke_g1_wait_complete(volatile void *userd, uint32_t target_put,
 			      volatile uint32_t *sema_cpu, uint32_t sema_payload,
@@ -575,6 +581,16 @@ nvidia_smoke_g1_wait_complete(volatile void *userd, uint32_t target_put,
 /** G2: same wait pattern as G1 (QMD sema release0 + GPFIFO idle). */
 static inline int
 nvidia_smoke_g2_wait_complete(volatile void *userd, uint32_t target_put,
+			      volatile uint32_t *sema_cpu, uint32_t sema_payload,
+			      volatile void *notifier, uint64_t timeout_ns)
+{
+	return nvidia_smoke_g1_wait_complete(userd, target_put, sema_cpu,
+					     sema_payload, notifier, timeout_ns);
+}
+
+/** G3: 3D report sema + GPFIFO idle (same host wait as G1/G2). */
+static inline int
+nvidia_smoke_g3_wait_complete(volatile void *userd, uint32_t target_put,
 			      volatile uint32_t *sema_cpu, uint32_t sema_payload,
 			      volatile void *notifier, uint64_t timeout_ns)
 {
