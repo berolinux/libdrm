@@ -341,6 +341,12 @@ void nvidia_gp_entry_pack(uint32_t entry[2], uint64_t gpu_addr,
 void nvidia_gp_entry_pack_flags(uint32_t entry[2], uint64_t gpu_addr,
 				uint32_t length_dwords, uint32_t flags);
 
+/**
+ * True if gpfifo_class should ring usermode doorbell after GPPut.
+ * 610.43.02 glcore@ac5557: only when class > 0xC36E (C36F+). class==0 => yes.
+ */
+bool nvidia_gpfifo_class_needs_doorbell(uint32_t gpfifo_class);
+
 /** Zero USERD (incl. GPGet/GPPut) before first GPFIFO submit; userd_bytes >= 0x90. */
 void nvidia_userd_init_host(volatile void *userd, size_t userd_bytes);
 
@@ -420,13 +426,17 @@ int nvidia_rm_channel_group_schedule(nvidia_device_handle device,
 /**
  * GPFIFO submit helper: write one entry into a host-mapped GPFIFO ring,
  * advance put index, write USERD GPPut, optional doorbell ring.
+ * Order matches 610.43.02 glcore@ac5540 (entry → GPPut@0x8c → sfence → doorbell@0x90).
  * gpfifo_cpu: host pointer to ring (2 dwords per entry)
  * gpfifo_entries: ring capacity
  * *gpfifo_put_inout: in/out next write index (wrapped)
  * userd: mapped USERD control block (GPPut/GPGet)
- * pb_gpu_addr / pb_dwords: pushbuffer segment to submit
+ * pb_gpu_addr / pb_dwords: pushbuffer segment to submit (dwords; max 0x1fffff)
  * usermode_map / work_submit_token: Volta+ doorbell (map may be NULL)
  * stall_timeout_ns: max wait if ring full (0 = no wait, return -EAGAIN)
+ *
+ * submit_one_ex: pass gpfifo_class so doorbell is skipped for class <= 0xC36E.
+ * submit_one: class=0 (doorbell whenever token+map — backward compatible).
  */
 int nvidia_gpfifo_submit_one(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 			     uint32_t *gpfifo_put_inout,
@@ -436,6 +446,17 @@ int nvidia_gpfifo_submit_one(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 			     uint32_t work_submit_token,
 			     bool has_work_submit_token,
 			     uint64_t stall_timeout_ns);
+
+/** Like submit_one but gates doorbell on gpfifo_class (> 0xC36E only; 0 = allow). */
+int nvidia_gpfifo_submit_one_ex(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
+				uint32_t *gpfifo_put_inout,
+				volatile void *userd,
+				uint64_t pb_gpu_addr, uint32_t pb_dwords,
+				volatile void *usermode_map,
+				uint32_t work_submit_token,
+				bool has_work_submit_token,
+				uint32_t gpfifo_class,
+				uint64_t stall_timeout_ns);
 
 /** Poll USERD until GPGet catches GPPut (or timeout). target_put = ring put index. */
 int nvidia_userd_wait_gpfifo_idle(volatile void *userd, uint32_t target_put,

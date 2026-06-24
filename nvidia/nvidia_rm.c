@@ -843,10 +843,13 @@ nvidia_gp_entry_pack(NvU32 entry[2], NvU64 gpu_addr, NvU32 length_dwords,
 	 * NVC36F_GP_ENTRY: word0 GET[31:2] = pb VA >> 2; word1 GET_HI + length +
 	 * PRIV/LEVEL/SYNC.  'wait' maps to SYNC_WAIT (bit 31), not LEVEL_SUBROUTINE
 	 * (bit 9) — older code conflated the two and could mis-encode wait segments.
+	 * Length is 21 bits at [30:10]; clamp so overflow cannot spill into SYNC bit.
 	 */
+	NvU32 len = length_dwords & NV_GP_ENTRY1_LENGTH_MASK;
+
 	entry[0] = (NvU32)((gpu_addr >> NV_GP_ENTRY0_GET_SHIFT) << NV_GP_ENTRY0_GET_SHIFT);
 	entry[1] = ((NvU32)(gpu_addr >> 32) & NV_GP_ENTRY1_GET_HI_MASK) |
-		   ((length_dwords & NV_GP_ENTRY1_LENGTH_MASK) << NV_GP_ENTRY1_LENGTH_SHIFT);
+		   (len << NV_GP_ENTRY1_LENGTH_SHIFT);
 	if (priv)
 		entry[1] |= (1u << NV_GP_ENTRY1_PRIV_SHIFT);
 	if (wait)
@@ -857,9 +860,11 @@ void
 nvidia_gp_entry_pack_flags(NvU32 entry[2], NvU64 gpu_addr, NvU32 length_dwords,
 			   uint32_t flags)
 {
+	NvU32 len = length_dwords & NV_GP_ENTRY1_LENGTH_MASK;
+
 	entry[0] = (NvU32)((gpu_addr >> NV_GP_ENTRY0_GET_SHIFT) << NV_GP_ENTRY0_GET_SHIFT);
 	entry[1] = ((NvU32)(gpu_addr >> 32) & NV_GP_ENTRY1_GET_HI_MASK) |
-		   ((length_dwords & NV_GP_ENTRY1_LENGTH_MASK) << NV_GP_ENTRY1_LENGTH_SHIFT);
+		   (len << NV_GP_ENTRY1_LENGTH_SHIFT);
 	if (flags & NV_GP_ENTRY_F_PRIV)
 		entry[1] |= (1u << NV_GP_ENTRY1_PRIV_SHIFT);
 	if (flags & NV_GP_ENTRY_F_LEVEL_SUBR)
@@ -869,27 +874,50 @@ nvidia_gp_entry_pack_flags(NvU32 entry[2], NvU64 gpu_addr, NvU32 length_dwords,
 }
 
 /*
- * Host-side GPFIFO ring submit: mirrors mesa nv_channel_kickoff / nvidia-push.
- * Writes one entry, advances put, publishes USERD GPPut, optional doorbell.
+ * True if channel GPFIFO class should use usermode doorbell after GPPut.
+ * 610.43.02 glcore@ac5557: doorbell only when class > 0xC36E (i.e. >= C36F).
+ * gpfifo_class==0 means unknown — allow doorbell (caller has token+map).
+ */
+bool
+nvidia_gpfifo_class_needs_doorbell(uint32_t gpfifo_class)
+{
+	if (!gpfifo_class)
+		return true;
+	return gpfifo_class >= NV_GP_DOORBELL_MIN_CLASS;
+}
+
+/*
+ * Host-side GPFIFO ring submit: mirrors mesa nv_channel_kickoff and 610.43.02
+ * glcore@ac5540 kick order:
+ *   1) write ring entry (pb VA + length@bits30:10)
+ *   2) USERD.GPPut @ +0x8c  (caller supplies one USERD; multi-USERD is mesa's job)
+ *   3) if class > C36E and token+map: sfence; usermode+0x90 = work_submit_token
+ *
+ * gpfifo_class==0: unknown class — ring doorbell whenever token+map provided.
+ * gpfifo_class<=0xC36E: GPPut-only (legacy path; no doorbell).
  */
 int
-nvidia_gpfifo_submit_one(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
-			 uint32_t *gpfifo_put_inout,
-			 volatile void *userd,
-			 uint64_t pb_gpu_addr, uint32_t pb_dwords,
-			 volatile void *usermode_map,
-			 uint32_t work_submit_token,
-			 bool has_work_submit_token,
-			 uint64_t stall_timeout_ns)
+nvidia_gpfifo_submit_one_ex(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
+			    uint32_t *gpfifo_put_inout,
+			    volatile void *userd,
+			    uint64_t pb_gpu_addr, uint32_t pb_dwords,
+			    volatile void *usermode_map,
+			    uint32_t work_submit_token,
+			    bool has_work_submit_token,
+			    uint32_t gpfifo_class,
+			    uint64_t stall_timeout_ns)
 {
 	volatile nvidia_userd_control_t *ud;
 	uint32_t put_idx, next_put;
 	uint32_t entry[2];
 	struct timespec ts;
 	uint64_t start_ns = 0, now_ns, deadline_ns;
+	bool ring_doorbell;
 
 	if (!gpfifo_cpu || !gpfifo_put_inout || !userd || !gpfifo_entries ||
 	    !pb_dwords)
+		return -EINVAL;
+	if (pb_dwords > NV_GP_ENTRY1_LENGTH_MASK)
 		return -EINVAL;
 
 	ud = (volatile nvidia_userd_control_t *)userd;
@@ -917,28 +945,56 @@ nvidia_gpfifo_submit_one(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 			return -ETIMEDOUT;
 	}
 
+	/* 1) GPFIFO ring entry (host-mapped; GPU reads via ring GPU VA) */
 	nvidia_gp_entry_pack(entry, pb_gpu_addr, pb_dwords, false, false);
 	gpfifo_cpu[put_idx * 2 + 0] = entry[0];
 	gpfifo_cpu[put_idx * 2 + 1] = entry[1];
-	/* Ensure GPFIFO entry stores are globally visible before GPPut */
+	/* Entry stores visible before GPPut (ac5540 does not sfence before GPPut,
+	 * but WC USERD/ring maps need host ordering; harmless extra barrier). */
 	__sync_synchronize();
 #if defined(__x86_64__) || defined(__i386__)
 	__asm__ __volatile__("sfence" ::: "memory");
 #endif
 
 	*gpfifo_put_inout = next_put;
-	/* Publish GPPut then doorbell (order matters for Volta+ usermode kick) */
+
+	/* 2) Publish GPPut @ USERD+0x8c (glcore ac554c) */
 	__sync_synchronize();
 	ud->GPPut = next_put;
-	__sync_synchronize();
-#if defined(__x86_64__) || defined(__i386__)
-	__asm__ __volatile__("sfence" ::: "memory");
-#endif
 
-	if (has_work_submit_token && usermode_map)
+	/* 3) Doorbell only for Turing+ GPFIFO (class > C36E) with token+usermode */
+	ring_doorbell = has_work_submit_token && usermode_map &&
+			nvidia_gpfifo_class_needs_doorbell(gpfifo_class);
+	if (ring_doorbell) {
+		/* Match ac5585: sfence after GPPut, before usermode+0x90 write */
+		__sync_synchronize();
+#if defined(__x86_64__) || defined(__i386__)
+		__asm__ __volatile__("sfence" ::: "memory");
+#endif
 		nvidia_rm_doorbell_ring(usermode_map, work_submit_token);
+	}
 
 	return 0;
+}
+
+int
+nvidia_gpfifo_submit_one(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
+			 uint32_t *gpfifo_put_inout,
+			 volatile void *userd,
+			 uint64_t pb_gpu_addr, uint32_t pb_dwords,
+			 volatile void *usermode_map,
+			 uint32_t work_submit_token,
+			 bool has_work_submit_token,
+			 uint64_t stall_timeout_ns)
+{
+	/* class=0: allow doorbell whenever token+map (backward compatible) */
+	return nvidia_gpfifo_submit_one_ex(gpfifo_cpu, gpfifo_entries,
+					   gpfifo_put_inout, userd,
+					   pb_gpu_addr, pb_dwords,
+					   usermode_map, work_submit_token,
+					   has_work_submit_token,
+					   0 /* unknown class */,
+					   stall_timeout_ns);
 }
 
 int

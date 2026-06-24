@@ -699,15 +699,28 @@ typedef volatile struct {
 	NvU32 GPPut;            /* 0x8c */
 } nvidia_userd_control_t;
 
-/* GPFIFO entry format (NV506F/NVC36F - 8 bytes; see clc36f.h NVC36F_GP_ENTRY*) */
+/* GPFIFO entry format (NV506F/NVC36F - 8 bytes; see clc36f.h NVC36F_GP_ENTRY*)
+ *
+ * entry[0]: FETCH[0], GET[31:2] = (pb_gpu_va >> 2) in bits 31:2 (4-byte aligned VA)
+ * entry[1]: GET_HI[7:0] = pb_gpu_va[39:32], PRIV[8], LEVEL[9], LENGTH[30:10] (21 bits,
+ *           length in dwords), SYNC[31]
+ *
+ * 610.43.02 glcore RE (a317c2): length intermediate masked with 0x1fffff then ORed into
+ * upper flag bits — matches LENGTH field width (bits 30:10), not "low 21 bits of entry1".
+ *
+ * Kick (glcore ac5540): write ring entry → USERD.GPPut@+0x8c (all USERDs) → if
+ * gpfifo_class > 0xC36E: sfence → usermode+0x90 = work_submit_token.
+ */
 #define NV_GP_ENTRY_SIZE                8
 #define NV_GP_ENTRY0_GET_SHIFT          2
 #define NV_GP_ENTRY1_GET_HI_MASK        0xff
 #define NV_GP_ENTRY1_PRIV_SHIFT         8
 #define NV_GP_ENTRY1_LEVEL_SHIFT        9
 #define NV_GP_ENTRY1_LENGTH_SHIFT       10
-#define NV_GP_ENTRY1_LENGTH_MASK        0x1fffff
+#define NV_GP_ENTRY1_LENGTH_MASK        0x1fffff  /* 21 bits at [30:10] */
 #define NV_GP_ENTRY1_SYNC_SHIFT         31  /* SYNC_WAIT: wait for prior PB segment */
+/* GPFIFO classes > this threshold use usermode doorbell (glcore ac5557) */
+#define NV_GP_DOORBELL_MIN_CLASS        0xc36f  /* first class strictly > 0xC36E */
 /* nvidia_gp_entry_pack flags (OR together) */
 #define NV_GP_ENTRY_F_PRIV              (1u << 0)  /* PRIV_KERNEL */
 #define NV_GP_ENTRY_F_LEVEL_SUBR        (1u << 1)  /* LEVEL_SUBROUTINE */

@@ -159,6 +159,7 @@ void nvidia_gp_entry_pack(NvU32 entry[2], NvU64 gpu_addr, NvU32 length_dwords,
 			  bool wait, bool priv);
 void nvidia_gp_entry_pack_flags(NvU32 entry[2], NvU64 gpu_addr,
 				NvU32 length_dwords, uint32_t flags);
+bool nvidia_gpfifo_class_needs_doorbell(uint32_t gpfifo_class);
 int nvidia_gpfifo_submit_one(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 			     uint32_t *gpfifo_put_inout,
 			     volatile void *userd,
@@ -167,6 +168,15 @@ int nvidia_gpfifo_submit_one(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 			     uint32_t work_submit_token,
 			     bool has_work_submit_token,
 			     uint64_t stall_timeout_ns);
+int nvidia_gpfifo_submit_one_ex(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
+				uint32_t *gpfifo_put_inout,
+				volatile void *userd,
+				uint64_t pb_gpu_addr, uint32_t pb_dwords,
+				volatile void *usermode_map,
+				uint32_t work_submit_token,
+				bool has_work_submit_token,
+				uint32_t gpfifo_class,
+				uint64_t stall_timeout_ns);
 int nvidia_userd_wait_gpfifo_idle(volatile void *userd, uint32_t target_put,
 				  uint64_t timeout_ns);
 int nvidia_userd_read_gpfifo(volatile void *userd,
