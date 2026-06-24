@@ -56,6 +56,8 @@ nvidia_gpfifo_submit_many
 nvidia_notifier_status
 nvidia_notifier_wait
 nvidia_notifier_reset
+nvidia_sema_wait_geq
+nvidia_sema_signaled_geq
 nvidia_rm_gpu_get_engines
 nvidia_rm_gpu_get_engine_classlist
 nvidia_pick_class_in_range

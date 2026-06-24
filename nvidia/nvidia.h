@@ -471,6 +471,17 @@ int nvidia_notifier_wait(volatile void *notifier, bool clear_on_ok,
 /** Write notifier to DONE_SUCCESS (host reset before submit). */
 void nvidia_notifier_reset(volatile void *notifier);
 
+/**
+ * Poll a host-mappable GPU semaphore dword until value >= payload (GEQ).
+ * Used for CE/3D/host sema completion when sema memory is CPU-mapped.
+ * timeout_ns 0 = try once; returns 0 ok, -ETIMEDOUT, -EINVAL.
+ */
+int nvidia_sema_wait_geq(volatile uint32_t *sema_cpu, uint32_t payload,
+			 uint64_t timeout_ns);
+
+/** Non-blocking: true if sema_cpu[0] >= payload. */
+bool nvidia_sema_signaled_geq(volatile uint32_t *sema_cpu, uint32_t payload);
+
 #define NVIDIA_MAX_ENGINES_LIST   84
 #define NVIDIA_MAX_ENGINE_CLASSES 128
 

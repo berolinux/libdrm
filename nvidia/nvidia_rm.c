@@ -1,5 +1,4 @@
 /*
-#include <stdbool.h>
  * Copyright 2026 - Open NVIDIA userspace driver project
  * SPDX-License-Identifier: MIT
  *
@@ -8,6 +7,7 @@
  */
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -1058,6 +1058,49 @@ nvidia_notifier_wait(volatile void *notifier, bool clear_on_ok,
 			return -EIO;
 		if (!timeout_ns)
 			return r;
+		if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
+			return -ETIMEDOUT;
+		now_ns = (uint64_t)ts.tv_sec * 1000000000ull +
+			 (uint64_t)ts.tv_nsec;
+		if (now_ns >= deadline_ns)
+			return -ETIMEDOUT;
+	}
+}
+
+bool
+nvidia_sema_signaled_geq(volatile uint32_t *sema_cpu, uint32_t payload)
+{
+	if (!sema_cpu || !payload)
+		return true;
+	return sema_cpu[0] >= payload;
+}
+
+int
+nvidia_sema_wait_geq(volatile uint32_t *sema_cpu, uint32_t payload,
+		     uint64_t timeout_ns)
+{
+	struct timespec ts;
+	uint64_t start_ns = 0, now_ns, deadline_ns;
+
+	if (!sema_cpu)
+		return -EINVAL;
+	if (!payload)
+		return 0;
+
+	if (nvidia_sema_signaled_geq(sema_cpu, payload))
+		return 0;
+
+	if (!timeout_ns)
+		return -EAGAIN;
+
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
+		start_ns = (uint64_t)ts.tv_sec * 1000000000ull +
+			   (uint64_t)ts.tv_nsec;
+	deadline_ns = start_ns + timeout_ns;
+
+	for (;;) {
+		if (nvidia_sema_signaled_geq(sema_cpu, payload))
+			return 0;
 		if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
 			return -ETIMEDOUT;
 		now_ns = (uint64_t)ts.tv_sec * 1000000000ull +
