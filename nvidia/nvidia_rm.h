@@ -783,9 +783,11 @@ typedef struct {
 #define NV_CTXSHARE_ALLOCATION_FLAGS_SUBCONTEXT_SYNC   0x00000000
 #define NV_CTXSHARE_ALLOCATION_FLAGS_SUBCONTEXT_ASYNC  0x00000001
 
-/* Channel group schedule (NVA06C_CTRL_CMD_GPFIFO_SCHEDULE) */
+/* Channel group (KEPLER_CHANNEL_GROUP_A / A06C) — pass5 glcore uses BIND then SCHEDULE */
 #define NVA06C_CTRL_CMD_GPFIFO_SCHEDULE  0xa06c0101
 #define NVA06C_CTRL_CMD_BIND             0xa06c0102
+#define NVA06C_CTRL_CMD_SET_TIMESLICE    0xa06c0103  /* pass5 imm; not GET_INTERLEAVE */
+#define NVA06C_CTRL_CMD_GET_TIMESLICE    0xa06c0104
 
 typedef struct {
 	NvBool bEnable;
@@ -795,6 +797,20 @@ typedef struct {
 typedef struct {
 	NvU32 engineType;
 } NVA06C_CTRL_BIND_PARAMS;
+
+typedef struct {
+	NvU64 timesliceUs NV_ALIGN_BYTES(8);
+} NVA06C_CTRL_TIMESLICE_PARAMS;
+
+typedef NVA06C_CTRL_TIMESLICE_PARAMS NVA06C_CTRL_SET_TIMESLICE_PARAMS;
+typedef NVA06C_CTRL_TIMESLICE_PARAMS NVA06C_CTRL_GET_TIMESLICE_PARAMS;
+
+/* Per-channel A06F BIND (OGKM ctrla06fgpfifo.h; engine bind before schedule) */
+#define NVA06F_CTRL_CMD_BIND             0xa06f0104
+
+typedef struct {
+	NvU32 engineType;
+} NVA06F_CTRL_BIND_PARAMS;
 
 /* VASpace / virtual memory / usermode doorbell (class headers + nvos.h) */
 #define FERMI_VASPACE_A                 0x000090f1
