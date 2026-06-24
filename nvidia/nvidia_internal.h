@@ -174,6 +174,11 @@ int nvidia_gpfifo_submit_many(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 			      uint32_t work_submit_token,
 			      bool has_work_submit_token,
 			      uint64_t stall_timeout_ns);
+int nvidia_notifier_status(volatile void *notifier,
+			   uint16_t *status_out, uint32_t *info32_out);
+int nvidia_notifier_wait(volatile void *notifier, bool clear_on_ok,
+			 uint64_t timeout_ns);
+void nvidia_notifier_reset(volatile void *notifier);
 int nvidia_rm_export_dmabuf_raw(int fd, NvHandle h_client,
 				NvHandle *handles, NvU64 *offsets, NvU64 *sizes,
 				NvU32 num_objects, NvU64 total_size,

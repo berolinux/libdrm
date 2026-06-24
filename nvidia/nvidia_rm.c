@@ -991,6 +991,83 @@ nvidia_gpfifo_submit_many(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 }
 
 int
+nvidia_notifier_status(volatile void *notifier,
+		       uint16_t *status_out, uint32_t *info32_out)
+{
+	volatile nvidia_notification_t *n;
+
+	if (!notifier)
+		return -EINVAL;
+	n = (volatile nvidia_notification_t *)notifier;
+	if (status_out)
+		*status_out = n->status;
+	if (info32_out)
+		*info32_out = n->info32;
+	if (n->status == NVIDIA_NOTIFICATION_STATUS_IN_PROGRESS)
+		return -EAGAIN;
+	if (n->status != NVIDIA_NOTIFICATION_STATUS_DONE_SUCCESS &&
+	    n->status != 0)
+		return -EIO;
+	return 0;
+}
+
+void
+nvidia_notifier_reset(volatile void *notifier)
+{
+	volatile nvidia_notification_t *n;
+
+	if (!notifier)
+		return;
+	n = (volatile nvidia_notification_t *)notifier;
+	n->status = NVIDIA_NOTIFICATION_STATUS_DONE_SUCCESS;
+	n->info32 = 0;
+	n->info16 = 0;
+	__sync_synchronize();
+}
+
+int
+nvidia_notifier_wait(volatile void *notifier, bool clear_on_ok,
+		     uint64_t timeout_ns)
+{
+	volatile nvidia_notification_t *n;
+	struct timespec ts;
+	uint64_t start_ns = 0, now_ns, deadline_ns;
+	int r;
+
+	if (!notifier)
+		return -EINVAL;
+	n = (volatile nvidia_notification_t *)notifier;
+
+	if (timeout_ns) {
+		if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
+			start_ns = (uint64_t)ts.tv_sec * 1000000000ull +
+				   (uint64_t)ts.tv_nsec;
+		deadline_ns = start_ns + timeout_ns;
+	} else {
+		deadline_ns = 0;
+	}
+
+	for (;;) {
+		r = nvidia_notifier_status(notifier, NULL, NULL);
+		if (r == 0) {
+			if (clear_on_ok)
+				nvidia_notifier_reset(notifier);
+			return 0;
+		}
+		if (r == -EIO)
+			return -EIO;
+		if (!timeout_ns)
+			return r;
+		if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
+			return -ETIMEDOUT;
+		now_ns = (uint64_t)ts.tv_sec * 1000000000ull +
+			 (uint64_t)ts.tv_nsec;
+		if (now_ns >= deadline_ns)
+			return -ETIMEDOUT;
+	}
+}
+
+int
 nvidia_rm_export_dmabuf_raw(int fd, NvHandle h_client,
 			    NvHandle *handles, NvU64 *offsets, NvU64 *sizes,
 			    NvU32 num_objects, NvU64 total_size,

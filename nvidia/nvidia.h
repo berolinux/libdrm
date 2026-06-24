@@ -455,3 +455,18 @@ int nvidia_gpfifo_submit_many(uint32_t *gpfifo_cpu, uint32_t gpfifo_entries,
 			      uint32_t work_submit_token,
 			      bool has_work_submit_token,
 			      uint64_t stall_timeout_ns);
+
+/* Error notifier (NvNotification in channel error-notifier memory) */
+#define NVIDIA_NOTIFIER_STATUS_DONE_SUCCESS  0x0000
+#define NVIDIA_NOTIFIER_STATUS_IN_PROGRESS   0xffff
+
+/** Read notifier status/info32; 0=ok, -EAGAIN=in progress, -EIO=error. */
+int nvidia_notifier_status(volatile void *notifier,
+			   uint16_t *status_out, uint32_t *info32_out);
+
+/** Poll until notifier done/success or error; optional clear on success. */
+int nvidia_notifier_wait(volatile void *notifier, bool clear_on_ok,
+			 uint64_t timeout_ns);
+
+/** Write notifier to DONE_SUCCESS (host reset before submit). */
+void nvidia_notifier_reset(volatile void *notifier);
