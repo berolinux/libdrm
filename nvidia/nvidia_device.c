@@ -266,9 +266,10 @@ nvidia_device_refresh_gpu_info(struct nvidia_device *dev, int gpu_index)
 		}
 	}
 
-	/* tick106: NV0080_CTRL_CMD_GPU_GET_NUM_SUBDEVICES (device object; MIG/SLI count) */
+	/* tick106/107: NV0080 device-level topology + virtualization (MIG/SLI/vGPU) */
 	if (dev->rm_device_allocated && dev->h_device) {
 		NV0080_CTRL_GPU_GET_NUM_SUBDEVICES_PARAMS nsd;
+		NV0080_CTRL_GPU_GET_VIRTUALIZATION_MODE_PARAMS virt;
 
 		memset(&nsd, 0, sizeof(nsd));
 		ret = nvidia_rm_control_raw(dev->fd_ctl, dev->h_client, dev->h_device,
@@ -278,6 +279,15 @@ nvidia_device_refresh_gpu_info(struct nvidia_device *dev, int gpu_index)
 			info->subdevice_count = nsd.numSubDevices;
 			if (info->subdevice_count > 8)
 				info->subdevice_count = 8; /* channel hUserdMemory[0..7] */
+		}
+
+		memset(&virt, 0, sizeof(virt));
+		ret = nvidia_rm_control_raw(dev->fd_ctl, dev->h_client, dev->h_device,
+					    NV0080_CTRL_CMD_GPU_GET_VIRTUALIZATION_MODE,
+					    &virt, sizeof(virt));
+		if (ret == 0) {
+			info->virtualization_mode = virt.virtualizationMode;
+			info->is_grid_build = virt.isGridBuild ? 1u : 0u;
 		}
 	}
 

@@ -82,6 +82,9 @@ struct nvidia_gpu_info {
 	uint32_t subdevice_instance;
 	/* tick106: MIG/SLI topology hints (1 = single subdevice default) */
 	uint32_t subdevice_count;
+	/* tick107: NV0080_CTRL_CMD_GPU_GET_VIRTUALIZATION_MODE (baremetal/vGPU/guest) */
+	uint32_t virtualization_mode; /* NV0080_CTRL_GPU_VIRTUALIZATION_MODE_* */
+	uint32_t is_grid_build;       /* non-zero if GRID/vGPU host build flag */
 	uint32_t pci_domain;
 	uint32_t pci_bus;
 	uint32_t pci_device;
