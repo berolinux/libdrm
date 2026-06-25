@@ -618,28 +618,12 @@ typedef struct {
 #define NVOS32_FREE_FLAGS_MEMORY_HANDLE_PROVIDED    0x00000001
 #define NVOS32_FUNCTION_ALLOC_SIZE_RANGE            14
 
-/* NVOS32_ATTR bitfields (subset used by userspace alloc) */
-#define NVOS32_ATTR_LOCATION                        1:0
-#define NVOS32_ATTR_LOCATION_VIDMEM                 0x00000000
-#define NVOS32_ATTR_LOCATION_PCI                    0x00000001
-#define NVOS32_ATTR_LOCATION_ANY                    0x00000003
-#define NVOS32_ATTR_PAGE_SIZE                       5:3
-#define NVOS32_ATTR_PAGE_SIZE_DEFAULT               0x00000000
-#define NVOS32_ATTR_PAGE_SIZE_4KB                   0x00000001
-#define NVOS32_ATTR_PAGE_SIZE_BIG                   0x00000002
-#define NVOS32_ATTR_PAGE_SIZE_HUGE                  0x00000003
-#define NVOS32_ATTR_COHERENCY                       9:7
-#define NVOS32_ATTR_COHERENCY_UNCACHED              0x00000000
-#define NVOS32_ATTR_COHERENCY_CACHED                0x00000001
-#define NVOS32_ATTR_COHERENCY_WRITE_COMBINE         0x00000002
-#define NVOS32_ATTR_PHYSICALITY                     13:12
-#define NVOS32_ATTR_PHYSICALITY_DEFAULT             0x00000000
-#define NVOS32_ATTR_PHYSICALITY_NONCONTIGUOUS       0x00000001
-#define NVOS32_ATTR_PHYSICALITY_CONTIGUOUS          0x00000002
-#define NVOS32_ATTR_FORMAT                          17:14
-#define NVOS32_ATTR_FORMAT_PITCH                    0x00000000
-#define NVOS32_ATTR_FORMAT_BLOCK_LINEAR             0x00000001
-#define NVOS32_ATTR_DEPTH                           21:18
+/*
+ * NVOS32_ATTR / ATTR2 — exact field positions from open-gpu-kernel-modules nvos.h
+ * (tick100: previous tree had wrong bit positions; allocs could mis-target memory).
+ * Field values are unshifted DRF selectors; use NV_OS32_ATTR_MAKE / NV_OS32_ATTR2_MAKE.
+ */
+#define NVOS32_ATTR_DEPTH                           2:0
 #define NVOS32_ATTR_DEPTH_UNKNOWN                   0x00000000
 #define NVOS32_ATTR_DEPTH_8                         0x00000001
 #define NVOS32_ATTR_DEPTH_16                        0x00000002
@@ -647,27 +631,82 @@ typedef struct {
 #define NVOS32_ATTR_DEPTH_32                        0x00000004
 #define NVOS32_ATTR_DEPTH_64                        0x00000005
 #define NVOS32_ATTR_DEPTH_128                       0x00000006
-#define NVOS32_ATTR_COMPR                           25:23
-#define NVOS32_ATTR_COMPR_NONE                      0x00000000
-#define NVOS32_ATTR_ZCULL                           29:28
-#define NVOS32_ATTR_ZCULL_NONE                      0x00000000
 
-#define NVOS32_ATTR2_GPU_CACHEABLE                  1:0
-#define NVOS32_ATTR2_GPU_CACHEABLE_DEFAULT          0x00000000
-#define NVOS32_ATTR2_GPU_CACHEABLE_YES              0x00000001
-#define NVOS32_ATTR2_GPU_CACHEABLE_NO               0x00000002
-#define NVOS32_ATTR2_ZBC                            3:2
+#define NVOS32_ATTR_ZCULL                           11:10
+#define NVOS32_ATTR_ZCULL_NONE                      0x00000000
+#define NVOS32_ATTR_ZCULL_REQUIRED                  0x00000001
+#define NVOS32_ATTR_ZCULL_ANY                       0x00000002
+#define NVOS32_ATTR_ZCULL_SHARED                    0x00000003
+
+#define NVOS32_ATTR_COMPR                           13:12
+#define NVOS32_ATTR_COMPR_NONE                      0x00000000
+#define NVOS32_ATTR_COMPR_REQUIRED                  0x00000001
+#define NVOS32_ATTR_COMPR_ANY                       0x00000002
+
+#define NVOS32_ATTR_FORMAT                          17:16
+#define NVOS32_ATTR_FORMAT_PITCH                    0x00000000
+#define NVOS32_ATTR_FORMAT_BLOCK_LINEAR             0x00000001
+
+#define NVOS32_ATTR_PAGE_SIZE                       24:23
+#define NVOS32_ATTR_PAGE_SIZE_DEFAULT               0x00000000
+#define NVOS32_ATTR_PAGE_SIZE_4KB                   0x00000001
+#define NVOS32_ATTR_PAGE_SIZE_BIG                   0x00000002
+#define NVOS32_ATTR_PAGE_SIZE_HUGE                  0x00000003
+
+#define NVOS32_ATTR_LOCATION                        26:25
+#define NVOS32_ATTR_LOCATION_VIDMEM                 0x00000000
+#define NVOS32_ATTR_LOCATION_PCI                    0x00000001
+#define NVOS32_ATTR_LOCATION_ANY                    0x00000003
+
+#define NVOS32_ATTR_PHYSICALITY                     28:27
+#define NVOS32_ATTR_PHYSICALITY_DEFAULT             0x00000000
+#define NVOS32_ATTR_PHYSICALITY_NONCONTIGUOUS       0x00000001
+#define NVOS32_ATTR_PHYSICALITY_CONTIGUOUS          0x00000002
+#define NVOS32_ATTR_PHYSICALITY_ALLOW_NONCONTIGUOUS 0x00000003
+
+#define NVOS32_ATTR_COHERENCY                       31:29
+#define NVOS32_ATTR_COHERENCY_UNCACHED              0x00000000
+#define NVOS32_ATTR_COHERENCY_CACHED                0x00000001
+#define NVOS32_ATTR_COHERENCY_WRITE_COMBINE         0x00000002
+#define NVOS32_ATTR_COHERENCY_WRITE_THROUGH         0x00000003
+#define NVOS32_ATTR_COHERENCY_WRITE_PROTECT         0x00000004
+#define NVOS32_ATTR_COHERENCY_WRITE_BACK            0x00000005
+
+#define NVOS32_ATTR2_ZBC                            1:0
 #define NVOS32_ATTR2_ZBC_DEFAULT                    0x00000000
 #define NVOS32_ATTR2_ZBC_PREFER_NO_ZBC              0x00000001
 #define NVOS32_ATTR2_ZBC_PREFER_ZBC                 0x00000002
 #define NVOS32_ATTR2_ZBC_REQUIRE_ONLY_ZBC           0x00000003
 
-/* Build ATTR values as composed bitfields matching kernel DRF_DEF patterns.
- * LOCATION in bits 1:0, PAGE_SIZE in 5:3, COHERENCY in 9:7, PHYSICALITY in 13:12
- */
+#define NVOS32_ATTR2_GPU_CACHEABLE                  3:2
+#define NVOS32_ATTR2_GPU_CACHEABLE_DEFAULT          0x00000000
+#define NVOS32_ATTR2_GPU_CACHEABLE_YES              0x00000001
+#define NVOS32_ATTR2_GPU_CACHEABLE_NO               0x00000002
+#define NVOS32_ATTR2_GPU_CACHEABLE_INVALID          0x00000003
+
+#define NVOS32_ATTR2_P2P_GPU_CACHEABLE              5:4
+#define NVOS32_ATTR2_P2P_GPU_CACHEABLE_DEFAULT      0x00000000
+#define NVOS32_ATTR2_P2P_GPU_CACHEABLE_YES          0x00000001
+#define NVOS32_ATTR2_P2P_GPU_CACHEABLE_NO           0x00000002
+
+#define NVOS32_ATTR2_32BIT_POINTER                  6:6
+#define NVOS32_ATTR2_32BIT_POINTER_DISABLE          0x00000000
+#define NVOS32_ATTR2_32BIT_POINTER_ENABLE           0x00000001
+
+/* DRF-style compose: shift unshifted field value into its bit range */
+#define NV_OS32_DRF_SHL(lo, hi, val) \
+	(((NvU32)(val) & ((1u << ((hi) - (lo) + 1)) - 1u)) << (lo))
+
+/* PAGE_SIZE@24:23, LOCATION@26:25, PHYSICALITY@28:27, COHERENCY@31:29 */
 #define NV_OS32_ATTR_MAKE(loc, pgsz, coh, phys) \
-	(((NvU32)(loc) & 3u) | (((NvU32)(pgsz) & 7u) << 3) | \
-	 (((NvU32)(coh) & 7u) << 7) | (((NvU32)(phys) & 3u) << 12))
+	(NV_OS32_DRF_SHL(23, 24, (pgsz)) | \
+	 NV_OS32_DRF_SHL(25, 26, (loc)) | \
+	 NV_OS32_DRF_SHL(27, 28, (phys)) | \
+	 NV_OS32_DRF_SHL(29, 31, (coh)))
+
+/* ZBC@1:0, GPU_CACHEABLE@3:2 */
+#define NV_OS32_ATTR2_MAKE(zbc, gpu_cache) \
+	(NV_OS32_DRF_SHL(0, 1, (zbc)) | NV_OS32_DRF_SHL(2, 3, (gpu_cache)))
 
 #define NV_OS32_ATTR_VIDMEM_4K_UNCACHED \
 	NV_OS32_ATTR_MAKE(NVOS32_ATTR_LOCATION_VIDMEM, NVOS32_ATTR_PAGE_SIZE_4KB, \
@@ -681,8 +720,15 @@ typedef struct {
 #define NV_OS32_ATTR_VIDMEM_4K_CACHED \
 	NV_OS32_ATTR_MAKE(NVOS32_ATTR_LOCATION_VIDMEM, NVOS32_ATTR_PAGE_SIZE_4KB, \
 			  NVOS32_ATTR_COHERENCY_CACHED, NVOS32_ATTR_PHYSICALITY_DEFAULT)
+/* allow non-contig vidmem fallback (common for large BOs) */
+#define NV_OS32_ATTR_VIDMEM_4K_UNCACHED_NONCONTIG \
+	NV_OS32_ATTR_MAKE(NVOS32_ATTR_LOCATION_VIDMEM, NVOS32_ATTR_PAGE_SIZE_4KB, \
+			  NVOS32_ATTR_COHERENCY_UNCACHED, \
+			  NVOS32_ATTR_PHYSICALITY_ALLOW_NONCONTIGUOUS)
 #define NV_OS32_ATTR2_GPU_CACHEABLE_NO_VAL \
-	(NVOS32_ATTR2_GPU_CACHEABLE_NO)
+	NV_OS32_ATTR2_MAKE(NVOS32_ATTR2_ZBC_DEFAULT, NVOS32_ATTR2_GPU_CACHEABLE_NO)
+#define NV_OS32_ATTR2_GPU_CACHEABLE_DEFAULT_VAL \
+	NV_OS32_ATTR2_MAKE(NVOS32_ATTR2_ZBC_DEFAULT, NVOS32_ATTR2_GPU_CACHEABLE_DEFAULT)
 
 /* NV_MEMORY_ALLOCATION_PARAMS - RmAlloc class params (nvos.h) */
 typedef struct {

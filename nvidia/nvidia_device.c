@@ -905,6 +905,40 @@ nvidia_rm_export_dmabuf(nvidia_device_handle device,
 }
 
 int
+nvidia_rm_memory_alloc_ex(nvidia_device_handle device,
+			  uint32_t h_parent, uint32_t *h_memory_out,
+			  uint32_t h_class, uint32_t type, uint32_t flags,
+			  uint32_t attr, uint32_t attr2, uint32_t format,
+			  uint32_t width, uint32_t height, int32_t pitch,
+			  uint64_t size, uint64_t alignment,
+			  uint32_t h_vaspace,
+			  uint64_t *offset_out, uint64_t *limit_out,
+			  int32_t *pitch_out)
+{
+	NvHandle h_mem;
+	NvHandle parent;
+	int ret;
+
+	if (!device || !h_memory_out || size == 0)
+		return -EINVAL;
+	parent = h_parent ? h_parent : device->h_device;
+	if (!parent)
+		return -ENODEV;
+	if (!h_class)
+		h_class = NV01_MEMORY_LOCAL_USER;
+	h_mem = nvidia_device_new_handle(device);
+	ret = nvidia_rm_memory_alloc_ex_raw(device->fd_ctl, device->h_client,
+					    parent, &h_mem, h_class,
+					    device->h_client, type, flags,
+					    attr, attr2, format, width, height,
+					    pitch, size, alignment, h_vaspace,
+					    offset_out, limit_out, pitch_out);
+	if (ret == 0)
+		*h_memory_out = h_mem;
+	return ret;
+}
+
+int
 nvidia_rm_memory_alloc(nvidia_device_handle device,
 		       uint32_t h_parent,
 		       uint32_t *h_memory_out,

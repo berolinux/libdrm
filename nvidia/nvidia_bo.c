@@ -82,22 +82,51 @@ nvidia_bo_alloc(nvidia_device_handle device,
 			NVOS32_ALLOC_FLAGS_PERSISTENT_VIDMEM;
 		if (req->flags & NVIDIA_BO_FLAGS_NO_SCANOUT)
 			flags |= NVOS32_ALLOC_FLAGS_NO_SCANOUT;
+		/* tick100: correct nvos.h ATTR bits; try allow-noncontig then strict */
 		ret = nvidia_rm_memory_alloc_raw(device->fd_ctl, device->h_client,
 						 h_parent, &bo->rm_handle,
 						 NV01_MEMORY_LOCAL_USER,
 						 device->h_client, bo->rm_type,
 						 flags,
-						 NV_OS32_ATTR_VIDMEM_4K_UNCACHED,
+						 NV_OS32_ATTR_VIDMEM_4K_UNCACHED_NONCONTIG,
 						 NV_OS32_ATTR2_GPU_CACHEABLE_NO_VAL,
 						 size, align,
 						 &bo->gpu_offset, &bo->limit);
 		if (ret != 0) {
+			bo->rm_handle = nvidia_device_new_handle(device);
+			ret = nvidia_rm_memory_alloc_raw(device->fd_ctl,
+							 device->h_client,
+							 h_parent, &bo->rm_handle,
+							 NV01_MEMORY_LOCAL_USER,
+							 device->h_client,
+							 bo->rm_type, flags,
+							 NV_OS32_ATTR_VIDMEM_4K_UNCACHED,
+							 NV_OS32_ATTR2_GPU_CACHEABLE_NO_VAL,
+							 size, align,
+							 &bo->gpu_offset,
+							 &bo->limit);
+		}
+		if (ret != 0) {
+			bo->rm_handle = nvidia_device_new_handle(device);
+			ret = nvidia_rm_vidheap_alloc_raw(device->fd_ctl,
+							  device->h_client,
+							  h_parent, bo->rm_type,
+							  flags, size, align,
+							  NV_OS32_ATTR_VIDMEM_4K_UNCACHED_NONCONTIG,
+							  NV_OS32_ATTR2_GPU_CACHEABLE_NO_VAL,
+							  &bo->rm_handle,
+							  &bo->gpu_offset,
+							  &bo->limit);
+		}
+		if (ret != 0) {
+			bo->rm_handle = nvidia_device_new_handle(device);
 			ret = nvidia_rm_vidheap_alloc_raw(device->fd_ctl,
 							  device->h_client,
 							  h_parent, bo->rm_type,
 							  flags, size, align,
 							  NV_OS32_ATTR_VIDMEM_4K_UNCACHED,
-							  0, &bo->rm_handle,
+							  NV_OS32_ATTR2_GPU_CACHEABLE_NO_VAL,
+							  &bo->rm_handle,
 							  &bo->gpu_offset,
 							  &bo->limit);
 		}

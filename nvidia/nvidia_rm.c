@@ -496,12 +496,15 @@ nvidia_rm_vidheap_free_raw(int fd, NvHandle h_root, NvHandle h_parent,
  * nvidia-push / nvkms / the binary driver use; vidheap is the older path.
  */
 int
-nvidia_rm_memory_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
-			   NvHandle *h_memory, NvV32 h_class,
-			   NvU32 owner, NvU32 type, NvU32 flags,
-			   NvU32 attr, NvU32 attr2,
-			   NvU64 size, NvU64 alignment,
-			   NvU64 *offset_out, NvU64 *limit_out)
+nvidia_rm_memory_alloc_ex_raw(int fd, NvHandle h_root, NvHandle h_parent,
+			      NvHandle *h_memory, NvV32 h_class,
+			      NvU32 owner, NvU32 type, NvU32 flags,
+			      NvU32 attr, NvU32 attr2, NvU32 format,
+			      NvU32 width, NvU32 height, NvS32 pitch,
+			      NvU64 size, NvU64 alignment,
+			      NvHandle h_vaspace,
+			      NvU64 *offset_out, NvU64 *limit_out,
+			      NvS32 *pitch_out)
 {
 	NV_MEMORY_ALLOCATION_PARAMS mp;
 	NvHandle h_mem;
@@ -515,10 +518,15 @@ nvidia_rm_memory_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
 	mp.type = type ? type : NVOS32_TYPE_DMA;
 	mp.flags = flags | NVOS32_ALLOC_FLAGS_ALIGNMENT_FORCE |
 		   NVOS32_ALLOC_FLAGS_MAP_NOT_REQUIRED;
+	mp.width = width;
+	mp.height = height;
+	mp.pitch = pitch;
 	mp.attr = attr;
 	mp.attr2 = attr2;
+	mp.format = format;
 	mp.size = size;
 	mp.alignment = alignment ? alignment : NVIDIA_DEFAULT_ALIGNMENT;
+	mp.hVASpace = h_vaspace;
 	mp.numaNode = -1;
 
 	h_mem = *h_memory;
@@ -532,7 +540,24 @@ nvidia_rm_memory_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
 		*offset_out = mp.offset;
 	if (limit_out)
 		*limit_out = mp.limit ? mp.limit : (mp.size ? mp.size - 1 : 0);
+	if (pitch_out)
+		*pitch_out = mp.pitch;
 	return 0;
+}
+
+int
+nvidia_rm_memory_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
+			   NvHandle *h_memory, NvV32 h_class,
+			   NvU32 owner, NvU32 type, NvU32 flags,
+			   NvU32 attr, NvU32 attr2,
+			   NvU64 size, NvU64 alignment,
+			   NvU64 *offset_out, NvU64 *limit_out)
+{
+	return nvidia_rm_memory_alloc_ex_raw(fd, h_root, h_parent, h_memory,
+					     h_class, owner, type, flags,
+					     attr, attr2, 0, 0, 0, 0,
+					     size, alignment, 0,
+					     offset_out, limit_out, NULL);
 }
 
 int

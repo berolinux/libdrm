@@ -123,6 +123,16 @@ int nvidia_rm_memory_alloc_raw(int fd, NvHandle h_root, NvHandle h_parent,
 			       NvU32 attr, NvU32 attr2,
 			       NvU64 size, NvU64 alignment,
 			       NvU64 *offset_out, NvU64 *limit_out);
+/* tick100: full NV_MEMORY_ALLOCATION_PARAMS (optional VAS / 2D pitch surface) */
+int nvidia_rm_memory_alloc_ex_raw(int fd, NvHandle h_root, NvHandle h_parent,
+				  NvHandle *h_memory, NvV32 h_class,
+				  NvU32 owner, NvU32 type, NvU32 flags,
+				  NvU32 attr, NvU32 attr2, NvU32 format,
+				  NvU32 width, NvU32 height, NvS32 pitch,
+				  NvU64 size, NvU64 alignment,
+				  NvHandle h_vaspace,
+				  NvU64 *offset_out, NvU64 *limit_out,
+				  NvS32 *pitch_out);
 int nvidia_rm_alloc_os_event_raw(int fd_ctl, NvHandle h_client, NvHandle h_device,
 				 int event_fd, NvU32 *status_out);
 int nvidia_rm_free_os_event_raw(int fd_ctl, NvHandle h_client, NvHandle h_device,

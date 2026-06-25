@@ -366,6 +366,20 @@ bool nvidia_probe_available(void);
 
 /* --- Extended RM helpers (channel / events / memory class alloc) --- */
 
+/**
+ * tick100: RmAlloc via NV_MEMORY_ALLOCATION_PARAMS with optional 2D/VAS fields.
+ * h_vaspace 0 = default; pitch 0 = RM chooses when width/height set.
+ */
+int nvidia_rm_memory_alloc_ex(nvidia_device_handle device,
+			      uint32_t h_parent, uint32_t *h_memory_out,
+			      uint32_t h_class, uint32_t type, uint32_t flags,
+			      uint32_t attr, uint32_t attr2, uint32_t format,
+			      uint32_t width, uint32_t height, int32_t pitch,
+			      uint64_t size, uint64_t alignment,
+			      uint32_t h_vaspace,
+			      uint64_t *offset_out, uint64_t *limit_out,
+			      int32_t *pitch_out);
+
 /** RmAlloc memory via NV_MEMORY_ALLOCATION_PARAMS (preferred over vidheap) */
 int nvidia_rm_memory_alloc(nvidia_device_handle device,
 			   uint32_t h_parent,
