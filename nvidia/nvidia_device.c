@@ -285,29 +285,60 @@ nvidia_device_refresh_gpu_info(struct nvidia_device *dev, int gpu_index)
 		       sizeof(info->name) - 1);
 	}
 
-	/* Framebuffer info */
+	/* Framebuffer info (tick101: BAR1/heap/ECC for mapping + alloc policy) */
 	memset(&fb, 0, sizeof(fb));
-	fb.fbInfoListSize = 8;
+	fb.fbInfoListSize = 12;
 	fb.fbInfoList[0].index = NV2080_CTRL_FB_INFO_INDEX_RAM_SIZE;
 	fb.fbInfoList[1].index = NV2080_CTRL_FB_INFO_INDEX_USABLE_RAM_SIZE;
 	fb.fbInfoList[2].index = NV2080_CTRL_FB_INFO_INDEX_HEAP_SIZE;
 	fb.fbInfoList[3].index = NV2080_CTRL_FB_INFO_INDEX_HEAP_FREE;
 	fb.fbInfoList[4].index = NV2080_CTRL_FB_INFO_INDEX_HEAP_START;
+	fb.fbInfoList[5].index = NV2080_CTRL_FB_INFO_INDEX_BAR1_SIZE;
+	fb.fbInfoList[6].index = NV2080_CTRL_FB_INFO_INDEX_BAR1_AVAIL_SIZE;
+	fb.fbInfoList[7].index = NV2080_CTRL_FB_INFO_INDEX_BAR1_MAX_CONTIG_AVAIL;
+	fb.fbInfoList[8].index = NV2080_CTRL_FB_INFO_FBPA_ECC_ENABLED;
+	fb.fbInfoList[9].index = NV2080_CTRL_FB_INFO_INDEX_ECC_STATUS_SIZE;
+	fb.fbInfoList[10].index = NV2080_CTRL_FB_INFO_INDEX_HEAP_START_ALT;
 	ret = nvidia_rm_control_raw(dev->fd_ctl, dev->h_client, dev->h_subdevice,
 				    NV2080_CTRL_CMD_FB_GET_INFO_V2,
 				    &fb, sizeof(fb));
 	if (ret == 0) {
-		for (i = 0; i < fb.fbInfoListSize && i < 8; i++) {
+		for (i = 0; i < fb.fbInfoListSize && i < 16; i++) {
+			NvU32 d = fb.fbInfoList[i].data;
 			switch (fb.fbInfoList[i].index) {
 			case NV2080_CTRL_FB_INFO_INDEX_RAM_SIZE:
 				/* RM reports in KB for some indices; store as given * 1024 if small */
-				info->fb_size = (uint64_t)fb.fbInfoList[i].data << 10;
+				info->fb_size = (uint64_t)d << 10;
 				break;
 			case NV2080_CTRL_FB_INFO_INDEX_USABLE_RAM_SIZE:
-				info->fb_usable = (uint64_t)fb.fbInfoList[i].data << 10;
+				info->fb_usable = (uint64_t)d << 10;
 				break;
 			case NV2080_CTRL_FB_INFO_INDEX_HEAP_FREE:
-				info->fb_free = (uint64_t)fb.fbInfoList[i].data << 10;
+				info->fb_free = (uint64_t)d << 10;
+				break;
+			case NV2080_CTRL_FB_INFO_INDEX_HEAP_SIZE:
+				info->fb_heap_size = (uint64_t)d << 10;
+				break;
+			case NV2080_CTRL_FB_INFO_INDEX_HEAP_START:
+			case NV2080_CTRL_FB_INFO_INDEX_HEAP_START_ALT:
+				/* heap start often in KB; keep as byte offset */
+				info->fb_heap_start = (uint64_t)d << 10;
+				break;
+			case NV2080_CTRL_FB_INFO_INDEX_BAR1_SIZE:
+				info->bar1_size = (uint64_t)d << 10;
+				if (!info->fb_bar_size && info->bar1_size)
+					info->fb_bar_size = info->bar1_size;
+				break;
+			case NV2080_CTRL_FB_INFO_INDEX_BAR1_AVAIL_SIZE:
+				info->bar1_avail_size = (uint64_t)d << 10;
+				break;
+			case NV2080_CTRL_FB_INFO_INDEX_BAR1_MAX_CONTIG_AVAIL:
+				/* store largest contig in bar1_avail if larger */
+				if (((uint64_t)d << 10) > info->bar1_avail_size)
+					info->bar1_avail_size = (uint64_t)d << 10;
+				break;
+			case NV2080_CTRL_FB_INFO_FBPA_ECC_ENABLED:
+				info->fbpa_ecc_enabled = d;
 				break;
 			default:
 				break;

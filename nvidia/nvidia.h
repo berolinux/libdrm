@@ -96,6 +96,12 @@ struct nvidia_gpu_info {
 	uint64_t reg_size;
 	uint64_t fb_bar_address;
 	uint64_t fb_bar_size;
+	/* tick101: refined FB_GET_INFO_V2 (BAR1 / heap / ECC) */
+	uint64_t fb_heap_size;        /* HEAP_SIZE (KB<<10 when stored as bytes) */
+	uint64_t fb_heap_start;       /* HEAP_START offset when reported */
+	uint64_t bar1_size;           /* BAR1 aperture size */
+	uint64_t bar1_avail_size;     /* BAR1 available for mapping */
+	uint32_t fbpa_ecc_enabled;    /* non-zero if FBPA ECC enabled */
 	uint32_t sm_version;
 	uint32_t gpc_count;
 	uint32_t tpc_count;

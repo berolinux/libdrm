@@ -1376,11 +1376,18 @@ typedef struct {
 } NV2080_CTRL_MC_GET_ARCH_INFO_PARAMS;
 
 /* NV2080_CTRL_FB_GET_INFO_V2 (simplified - index-based list) */
+/* tick101: FB_GET_INFO indices from ctrl2080fb.h (subset used in probe) */
 #define NV2080_CTRL_FB_INFO_INDEX_HEAP_SIZE              0
 #define NV2080_CTRL_FB_INFO_INDEX_HEAP_FREE              1
 #define NV2080_CTRL_FB_INFO_INDEX_HEAP_START             2
 #define NV2080_CTRL_FB_INFO_INDEX_RAM_SIZE               4
+#define NV2080_CTRL_FB_INFO_INDEX_BAR1_SIZE              5
 #define NV2080_CTRL_FB_INFO_INDEX_USABLE_RAM_SIZE        23
+#define NV2080_CTRL_FB_INFO_INDEX_BAR1_AVAIL_SIZE        29  /* 0x1D */
+#define NV2080_CTRL_FB_INFO_INDEX_HEAP_START_ALT         30  /* 0x1E some RMs */
+#define NV2080_CTRL_FB_INFO_INDEX_BAR1_MAX_CONTIG_AVAIL  31  /* 0x1F */
+#define NV2080_CTRL_FB_INFO_FBPA_ECC_ENABLED             45  /* 0x2D */
+#define NV2080_CTRL_FB_INFO_INDEX_ECC_STATUS_SIZE        53  /* 0x35 */
 #define NV2080_CTRL_FB_INFO_MAX_LIST_SIZE                64
 
 typedef struct {
