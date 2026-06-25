@@ -1342,6 +1342,43 @@ nvidia_rm_os46_pick_page_size(uint64_t max_gpu_page_size, uint64_t map_length)
 	return NVOS46_FLAGS_PAGE_SIZE_DEFAULT;
 }
 
+/*
+ * tick103: When BAR1 remaining aperture is small relative to the mapping,
+ * avoid 512M/HUGE selectors that can fail or waste scarce BAR1 range.
+ * Heuristic (refine on silicon): if bar1_avail < 4*map_length or < 64MB and
+ * map is large, cap at BIG; if bar1_avail < map_length*2 or < 16MB, prefer 4K.
+ */
+uint32_t
+nvidia_rm_os46_pick_page_size_bar1(uint64_t max_gpu_page_size,
+				   uint64_t map_length,
+				   uint64_t bar1_avail_bytes)
+{
+	uint32_t sel = nvidia_rm_os46_pick_page_size(max_gpu_page_size,
+						     map_length);
+	const uint64_t mb_16 = 16ull * 1024ull * 1024ull;
+	const uint64_t mb_64 = 64ull * 1024ull * 1024ull;
+
+	if (!bar1_avail_bytes)
+		return sel;
+
+	if (bar1_avail_bytes < mb_16 ||
+	    (map_length && bar1_avail_bytes < map_length * 2ull)) {
+		if (sel == NVOS46_FLAGS_PAGE_SIZE_512M ||
+		    sel == NVOS46_FLAGS_PAGE_SIZE_HUGE ||
+		    sel == NVOS46_FLAGS_PAGE_SIZE_BIG ||
+		    sel == NVOS46_FLAGS_PAGE_SIZE_BOTH)
+			return NVOS46_FLAGS_PAGE_SIZE_4KB;
+		return sel;
+	}
+	if (bar1_avail_bytes < mb_64 ||
+	    (map_length && bar1_avail_bytes < map_length * 4ull)) {
+		if (sel == NVOS46_FLAGS_PAGE_SIZE_512M ||
+		    sel == NVOS46_FLAGS_PAGE_SIZE_HUGE)
+			return NVOS46_FLAGS_PAGE_SIZE_BIG;
+	}
+	return sel;
+}
+
 uint32_t
 nvidia_rm_os46_flags_rw(uint32_t page_size_sel)
 {

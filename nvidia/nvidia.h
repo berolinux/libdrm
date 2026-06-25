@@ -622,6 +622,16 @@ int nvidia_rm_vidheap_alloc_tiled(nvidia_device_handle device,
 uint32_t nvidia_rm_os46_pick_page_size(uint64_t max_gpu_page_size,
 				       uint64_t map_length);
 
+/**
+ * tick103: pick page size considering BAR1 aperture pressure.
+ * bar1_avail_bytes: from FB_GET_INFO BAR1_AVAIL_SIZE (0 = unknown, ignore).
+ * When BAR1 is tight vs map_length, prefer smaller pages (BIG/4K) to reduce
+ * fragmentation / wasted aperture vs huge pages spanning more BAR1 range.
+ */
+uint32_t nvidia_rm_os46_pick_page_size_bar1(uint64_t max_gpu_page_size,
+					    uint64_t map_length,
+					    uint64_t bar1_avail_bytes);
+
 /** Build NVOS46 flags for RW access with selected page size (no fixed VA).
  *  Implemented in nvidia_rm.c (needs NVOS46_MAKE_FLAGS from nvidia_rm.h). */
 uint32_t nvidia_rm_os46_flags_rw(uint32_t page_size_sel);
@@ -650,6 +660,21 @@ int nvidia_rm_map_memory_dma_auto(nvidia_device_handle device,
 				  uint64_t max_gpu_page_size,
 				  uint64_t *dma_offset_inout,
 				  uint32_t *flags_used_out);
+
+/**
+ * tick103: same as map_memory_dma_auto but applies BAR1-aware page preference
+ * (bar1_avail_bytes=0 disables BAR1 clamp, same as auto).
+ */
+int nvidia_rm_map_memory_dma_auto_bar1(nvidia_device_handle device,
+				       uint32_t h_device,
+				       uint32_t h_dma,
+				       uint32_t h_memory,
+				       uint64_t offset,
+				       uint64_t length,
+				       uint64_t max_gpu_page_size,
+				       uint64_t bar1_avail_bytes,
+				       uint64_t *dma_offset_inout,
+				       uint32_t *flags_used_out);
 
 /** Unmap a prior NVOS46 mapping (NVOS47) */
 int nvidia_rm_unmap_memory_dma(nvidia_device_handle device,

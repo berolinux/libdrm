@@ -1523,6 +1523,65 @@ nvidia_rm_map_memory_dma_auto(nvidia_device_handle device,
 }
 
 int
+nvidia_rm_map_memory_dma_auto_bar1(nvidia_device_handle device,
+				   uint32_t h_device,
+				   uint32_t h_dma,
+				   uint32_t h_memory,
+				   uint64_t offset,
+				   uint64_t length,
+				   uint64_t max_gpu_page_size,
+				   uint64_t bar1_avail_bytes,
+				   uint64_t *dma_offset_inout,
+				   uint32_t *flags_used_out)
+{
+	static const uint32_t ladder[] = {
+		NVOS46_FLAGS_PAGE_SIZE_512M,
+		NVOS46_FLAGS_PAGE_SIZE_HUGE,
+		NVOS46_FLAGS_PAGE_SIZE_BIG,
+		NVOS46_FLAGS_PAGE_SIZE_BOTH,
+		NVOS46_FLAGS_PAGE_SIZE_4KB,
+		NVOS46_FLAGS_PAGE_SIZE_DEFAULT,
+	};
+	uint32_t prefer;
+	unsigned i, start = 0;
+	int ret = -EINVAL;
+	uint64_t dma_try;
+	uint32_t h_dev;
+
+	if (!device || !h_dma || !h_memory || !length)
+		return -EINVAL;
+	h_dev = h_device ? h_device : device->h_device;
+	if (!h_dev)
+		return -ENODEV;
+
+	prefer = nvidia_rm_os46_pick_page_size_bar1(max_gpu_page_size, length,
+						    bar1_avail_bytes);
+	for (i = 0; i < sizeof(ladder) / sizeof(ladder[0]); i++) {
+		if (ladder[i] == prefer) {
+			start = i;
+			break;
+		}
+	}
+
+	for (i = start; i < sizeof(ladder) / sizeof(ladder[0]); i++) {
+		uint32_t fl = NVOS46_MAKE_FLAGS(NVOS46_FLAGS_ACCESS_READ_WRITE,
+						ladder[i], 0);
+		dma_try = dma_offset_inout ? *dma_offset_inout : 0;
+		ret = nvidia_rm_map_memory_dma_raw(device->fd_ctl, device->h_client,
+						   h_dev, h_dma, h_memory,
+						   offset, length, fl, &dma_try);
+		if (ret == 0) {
+			if (dma_offset_inout)
+				*dma_offset_inout = dma_try;
+			if (flags_used_out)
+				*flags_used_out = fl;
+			return 0;
+		}
+	}
+	return ret;
+}
+
+int
 nvidia_rm_unmap_memory_dma(nvidia_device_handle device,
 			   uint32_t h_device,
 			   uint32_t h_dma,
