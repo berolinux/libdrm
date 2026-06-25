@@ -639,6 +639,14 @@ uint32_t nvidia_rm_os46_pick_page_size_bar1(uint64_t max_gpu_page_size,
  *  Implemented in nvidia_rm.c (needs NVOS46_MAKE_FLAGS from nvidia_rm.h). */
 uint32_t nvidia_rm_os46_flags_rw(uint32_t page_size_sel);
 
+/**
+ * tick105: recommend NVOS32 ATTR page-size selector from GPU max_page_size.
+ * Returns unshifted NVOS32_ATTR_PAGE_SIZE_* (DEFAULT/4KB/BIG/HUGE).
+ * Used when building memory_alloc_ex ATTR beyond the fixed 4K presets.
+ */
+uint32_t nvidia_rm_os32_pick_attr_page_size(uint64_t max_gpu_page_size,
+					    uint64_t alloc_size);
+
 /** Map physical/sysmem BO into a VASpace or CTXDMA (NVOS46 / MAP_MEMORY_DMA) */
 int nvidia_rm_map_memory_dma(nvidia_device_handle device,
 			     uint32_t h_device,

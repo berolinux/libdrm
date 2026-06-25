@@ -1385,6 +1385,30 @@ nvidia_rm_os46_flags_rw(uint32_t page_size_sel)
 	return NVOS46_MAKE_FLAGS(NVOS46_FLAGS_ACCESS_READ_WRITE, page_size_sel, 0);
 }
 
+/*
+ * tick105: NVOS32 ATTR PAGE_SIZE field (bits 24:23) from GPU max_page_size.
+ * Prefer BIG when alloc is large and GPU reports >=64K; HUGE only when
+ * max_page_size >= 2M and alloc is huge (RM may reject on some SKUs).
+ */
+uint32_t
+nvidia_rm_os32_pick_attr_page_size(uint64_t max_gpu_page_size,
+				   uint64_t alloc_size)
+{
+	const uint64_t sz_2m = 2ull * 1024ull * 1024ull;
+	const uint64_t sz_64k = 64ull * 1024ull;
+	uint64_t limit = max_gpu_page_size;
+
+	if (!limit)
+		return NVOS32_ATTR_PAGE_SIZE_4KB;
+	if (alloc_size >= sz_2m && limit >= sz_2m)
+		return NVOS32_ATTR_PAGE_SIZE_HUGE;
+	if (alloc_size >= sz_64k && limit >= sz_64k)
+		return NVOS32_ATTR_PAGE_SIZE_BIG;
+	if (limit >= 4096)
+		return NVOS32_ATTR_PAGE_SIZE_4KB;
+	return NVOS32_ATTR_PAGE_SIZE_DEFAULT;
+}
+
 int
 nvidia_rm_map_memory_dma_raw(int fd, NvHandle h_client, NvHandle h_device,
 			     NvHandle h_dma, NvHandle h_memory,
