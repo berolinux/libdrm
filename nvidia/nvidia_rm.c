@@ -1317,6 +1317,37 @@ nvidia_rm_vidheap_alloc_tiled_raw(int fd, NvHandle h_root, NvHandle h_parent,
 	return 0;
 }
 
+/*
+ * tick102: Choose NVOS46 page-size selector from probe max_page_size + length.
+ * Unshifted values; caller passes through NVOS46_MAKE_FLAGS / flags_rw.
+ */
+uint32_t
+nvidia_rm_os46_pick_page_size(uint64_t max_gpu_page_size, uint64_t map_length)
+{
+	const uint64_t sz_512m = 512ull * 1024ull * 1024ull;
+	const uint64_t sz_2m = 2ull * 1024ull * 1024ull;
+	const uint64_t sz_64k = 64ull * 1024ull;
+	uint64_t limit = max_gpu_page_size;
+
+	if (!limit)
+		limit = sz_2m; /* conservative when probe missing */
+	if (map_length >= sz_512m && limit >= sz_512m)
+		return NVOS46_FLAGS_PAGE_SIZE_512M;
+	if (map_length >= sz_2m && limit >= sz_2m)
+		return NVOS46_FLAGS_PAGE_SIZE_HUGE;
+	if (map_length >= sz_64k && limit >= sz_64k)
+		return NVOS46_FLAGS_PAGE_SIZE_BIG;
+	if (limit >= 4096)
+		return NVOS46_FLAGS_PAGE_SIZE_4KB;
+	return NVOS46_FLAGS_PAGE_SIZE_DEFAULT;
+}
+
+uint32_t
+nvidia_rm_os46_flags_rw(uint32_t page_size_sel)
+{
+	return NVOS46_MAKE_FLAGS(NVOS46_FLAGS_ACCESS_READ_WRITE, page_size_sel, 0);
+}
+
 int
 nvidia_rm_map_memory_dma_raw(int fd, NvHandle h_client, NvHandle h_device,
 			     NvHandle h_dma, NvHandle h_memory,

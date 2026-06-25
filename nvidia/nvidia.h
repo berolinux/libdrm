@@ -105,6 +105,9 @@ struct nvidia_gpu_info {
 	uint32_t sm_version;
 	uint32_t gpc_count;
 	uint32_t tpc_count;
+	/* tick102: GR_GET_INFO_V2 for QMD / CTA limits */
+	uint32_t max_warps_per_sm;       /* NV2080 MAX_WARPS_PER_SM */
+	uint32_t thread_stack_scaling;   /* THREAD_STACK_SCALING_FACTOR */
 	/* tick96: refined probe (FB regions / page size / PCI ids from RM) */
 	uint32_t fb_region_count;     /* NV2080 FB_GET_FB_REGION_INFO numFBRegions */
 	uint64_t fb_region0_base;     /* first region base (phys) */
@@ -611,6 +614,18 @@ int nvidia_rm_vidheap_alloc_tiled(nvidia_device_handle device,
 				  uint32_t *h_memory_out, uint64_t *offset_out,
 				  uint64_t *limit_out, uint32_t *pitch_out);
 
+/**
+ * tick102: pick NVOS46 PAGE_SIZE field selector from GPU max page size /
+ * mapping length.  Returns unshifted NVOS46_FLAGS_PAGE_SIZE_* value.
+ * Prefer largest supported: 512M > HUGE(2M) > BIG(64/128K) > 4K > DEFAULT.
+ */
+uint32_t nvidia_rm_os46_pick_page_size(uint64_t max_gpu_page_size,
+				       uint64_t map_length);
+
+/** Build NVOS46 flags for RW access with selected page size (no fixed VA).
+ *  Implemented in nvidia_rm.c (needs NVOS46_MAKE_FLAGS from nvidia_rm.h). */
+uint32_t nvidia_rm_os46_flags_rw(uint32_t page_size_sel);
+
 /** Map physical/sysmem BO into a VASpace or CTXDMA (NVOS46 / MAP_MEMORY_DMA) */
 int nvidia_rm_map_memory_dma(nvidia_device_handle device,
 			     uint32_t h_device,
@@ -620,6 +635,21 @@ int nvidia_rm_map_memory_dma(nvidia_device_handle device,
 			     uint64_t length,
 			     uint32_t flags,
 			     uint64_t *dma_offset_inout);
+
+/**
+ * tick102: NVOS46 map with automatic page-size retry ladder (BIG/HUGE/4K/default).
+ * max_gpu_page_size: from GPU_GET_MAX_SUPPORTED_PAGE_SIZE (0 = try all reasonable).
+ * Tries largest feasible page size first; falls back if RM rejects.
+ */
+int nvidia_rm_map_memory_dma_auto(nvidia_device_handle device,
+				  uint32_t h_device,
+				  uint32_t h_dma,
+				  uint32_t h_memory,
+				  uint64_t offset,
+				  uint64_t length,
+				  uint64_t max_gpu_page_size,
+				  uint64_t *dma_offset_inout,
+				  uint32_t *flags_used_out);
 
 /** Unmap a prior NVOS46 mapping (NVOS47) */
 int nvidia_rm_unmap_memory_dma(nvidia_device_handle device,

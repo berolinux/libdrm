@@ -1279,15 +1279,64 @@ typedef struct {
 	NvU32           status;
 } NVOS57_PARAMETERS;
 
-/* NVOS46: map memory into a DMA / VASpace (NV_ESC_RM_MAP_MEMORY_DMA) */
-#define NVOS46_FLAGS_ACCESS_READ_WRITE     0x00000000
-#define NVOS46_FLAGS_ACCESS_READ_ONLY      0x00000001
-#define NVOS46_FLAGS_ACCESS_WRITE_ONLY     0x00000002
-#define NVOS46_FLAGS_PAGE_SIZE_DEFAULT     0x00000000
-#define NVOS46_FLAGS_PAGE_SIZE_4KB         (0x00000001u << 8)
-#define NVOS46_FLAGS_PAGE_SIZE_BIG         (0x00000002u << 8)
-#define NVOS46_FLAGS_DMA_OFFSET_FIXED      (1u << 4)
-#define NVOS46_FLAGS_DMA_OFFSET_FIXED_TRUE (1u << 4)
+/*
+ * NVOS46: map memory into a DMA / VASpace (NV_ESC_RM_MAP_MEMORY_DMA)
+ * tick102: full flag fields from open-gpu-kernel-modules nvos.h
+ * (unshifted field values; use NV_OS32_DRF_SHL / NVOS46_MAKE_FLAGS helpers).
+ */
+#define NVOS46_FLAGS_ACCESS_READ_WRITE             0x00000000u
+#define NVOS46_FLAGS_ACCESS_READ_ONLY              0x00000001u
+#define NVOS46_FLAGS_ACCESS_WRITE_ONLY             0x00000002u
+
+#define NVOS46_FLAGS_32BIT_POINTER_DISABLE         0x00000000u
+#define NVOS46_FLAGS_32BIT_POINTER_ENABLE          0x00000001u
+
+#define NVOS46_FLAGS_PAGE_KIND_PHYSICAL            0x00000000u
+#define NVOS46_FLAGS_PAGE_KIND_VIRTUAL             0x00000001u
+
+#define NVOS46_FLAGS_CACHE_SNOOP_DISABLE           0x00000000u
+#define NVOS46_FLAGS_CACHE_SNOOP_ENABLE            0x00000001u
+
+#define NVOS46_FLAGS_KERNEL_MAPPING_NONE           0x00000000u
+#define NVOS46_FLAGS_KERNEL_MAPPING_ENABLE         0x00000001u
+
+#define NVOS46_FLAGS_SHADER_ACCESS_DEFAULT         0x00000000u
+#define NVOS46_FLAGS_SHADER_ACCESS_READ_ONLY       0x00000001u
+#define NVOS46_FLAGS_SHADER_ACCESS_WRITE_ONLY      0x00000002u
+#define NVOS46_FLAGS_SHADER_ACCESS_READ_WRITE      0x00000003u
+
+/* PAGE_SIZE field values (shifted into bits 11:8) */
+#define NVOS46_FLAGS_PAGE_SIZE_DEFAULT             0x00000000u
+#define NVOS46_FLAGS_PAGE_SIZE_4KB                 0x00000001u
+#define NVOS46_FLAGS_PAGE_SIZE_BIG                 0x00000002u
+#define NVOS46_FLAGS_PAGE_SIZE_BOTH                0x00000003u
+#define NVOS46_FLAGS_PAGE_SIZE_HUGE                0x00000004u
+#define NVOS46_FLAGS_PAGE_SIZE_512M                0x00000005u
+
+#define NVOS46_FLAGS_SYSTEM_L3_ALLOC_DEFAULT       0x00000000u
+#define NVOS46_FLAGS_SYSTEM_L3_ALLOC_ENABLE_HINT   0x00000001u
+
+#define NVOS46_FLAGS_DMA_OFFSET_GROWS_UP           0x00000000u
+#define NVOS46_FLAGS_DMA_OFFSET_GROWS_DOWN         0x00000001u
+
+#define NVOS46_FLAGS_DMA_OFFSET_FIXED_FALSE        0x00000000u
+#define NVOS46_FLAGS_DMA_OFFSET_FIXED_TRUE         0x00000001u
+
+/* Pre-shifted convenience (legacy code used these directly in flags args) */
+#define NVOS46_FLAGS_PAGE_SIZE_4KB_SHL             NV_OS32_DRF_SHL(8, 11, NVOS46_FLAGS_PAGE_SIZE_4KB)
+#define NVOS46_FLAGS_PAGE_SIZE_BIG_SHL             NV_OS32_DRF_SHL(8, 11, NVOS46_FLAGS_PAGE_SIZE_BIG)
+#define NVOS46_FLAGS_PAGE_SIZE_HUGE_SHL            NV_OS32_DRF_SHL(8, 11, NVOS46_FLAGS_PAGE_SIZE_HUGE)
+#define NVOS46_FLAGS_PAGE_SIZE_512M_SHL            NV_OS32_DRF_SHL(8, 11, NVOS46_FLAGS_PAGE_SIZE_512M)
+/* Pre-shifted FIXED bit (bit 15); unshifted field value remains _TRUE/_FALSE above */
+#define NVOS46_FLAGS_DMA_OFFSET_FIXED              NV_OS32_DRF_SHL(15, 15, 1u)
+#define NVOS46_FLAGS_32BIT_POINTER                 NV_OS32_DRF_SHL(2, 2, NVOS46_FLAGS_32BIT_POINTER_ENABLE)
+#define NVOS46_FLAGS_CACHE_SNOOP                   NV_OS32_DRF_SHL(4, 4, NVOS46_FLAGS_CACHE_SNOOP_ENABLE)
+
+/* Compose NVOS46 flags: access + page_size selector + optional fixed offset bit */
+#define NVOS46_MAKE_FLAGS(access, page_size_sel, fixed_va) \
+	(((NvU32)(access) & 3u) | \
+	 NV_OS32_DRF_SHL(8, 11, (page_size_sel)) | \
+	 ((fixed_va) ? NVOS46_FLAGS_DMA_OFFSET_FIXED : 0u))
 
 typedef struct {
 	NvHandle hClient;

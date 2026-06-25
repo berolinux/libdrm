@@ -346,18 +346,19 @@ nvidia_device_refresh_gpu_info(struct nvidia_device *dev, int gpu_index)
 		}
 	}
 
-	/* Graphics / SM info */
+	/* Graphics / SM info (tick102: also thread-stack scale / warps for QMD) */
 	memset(&gr, 0, sizeof(gr));
-	gr.grInfoListSize = 6;
+	gr.grInfoListSize = 5;
 	gr.grInfoList[0].index = NV2080_CTRL_GR_INFO_INDEX_SM_VERSION;
 	gr.grInfoList[1].index = NV2080_CTRL_GR_INFO_INDEX_SHADER_PIPE_COUNT;
 	gr.grInfoList[2].index = NV2080_CTRL_GR_INFO_INDEX_SHADER_PIPE_SUB_COUNT;
 	gr.grInfoList[3].index = NV2080_CTRL_GR_INFO_INDEX_MAX_WARPS_PER_SM;
+	gr.grInfoList[4].index = NV2080_CTRL_GR_INFO_INDEX_THREAD_STACK_SCALING_FACTOR;
 	ret = nvidia_rm_control_raw(dev->fd_ctl, dev->h_client, dev->h_subdevice,
 				    NV2080_CTRL_CMD_GR_GET_INFO_V2,
 				    &gr, sizeof(gr));
 	if (ret == 0) {
-		for (i = 0; i < gr.grInfoListSize && i < 6; i++) {
+		for (i = 0; i < gr.grInfoListSize && i < 16; i++) {
 			switch (gr.grInfoList[i].index) {
 			case NV2080_CTRL_GR_INFO_INDEX_SM_VERSION:
 				info->sm_version = gr.grInfoList[i].data;
@@ -367,6 +368,12 @@ nvidia_device_refresh_gpu_info(struct nvidia_device *dev, int gpu_index)
 				break;
 			case NV2080_CTRL_GR_INFO_INDEX_SHADER_PIPE_SUB_COUNT:
 				info->tpc_count = gr.grInfoList[i].data;
+				break;
+			case NV2080_CTRL_GR_INFO_INDEX_MAX_WARPS_PER_SM:
+				info->max_warps_per_sm = gr.grInfoList[i].data;
+				break;
+			case NV2080_CTRL_GR_INFO_INDEX_THREAD_STACK_SCALING_FACTOR:
+				info->thread_stack_scaling = gr.grInfoList[i].data;
 				break;
 			default:
 				break;
@@ -1455,6 +1462,64 @@ nvidia_rm_map_memory_dma(nvidia_device_handle device,
 					    h_device ? h_device : device->h_device,
 					    h_dma, h_memory, offset, length,
 					    flags, dma_offset_inout);
+}
+
+int
+nvidia_rm_map_memory_dma_auto(nvidia_device_handle device,
+			      uint32_t h_device,
+			      uint32_t h_dma,
+			      uint32_t h_memory,
+			      uint64_t offset,
+			      uint64_t length,
+			      uint64_t max_gpu_page_size,
+			      uint64_t *dma_offset_inout,
+			      uint32_t *flags_used_out)
+{
+	/* Try preferred, then step down through common selectors */
+	static const uint32_t ladder[] = {
+		NVOS46_FLAGS_PAGE_SIZE_512M,
+		NVOS46_FLAGS_PAGE_SIZE_HUGE,
+		NVOS46_FLAGS_PAGE_SIZE_BIG,
+		NVOS46_FLAGS_PAGE_SIZE_BOTH,
+		NVOS46_FLAGS_PAGE_SIZE_4KB,
+		NVOS46_FLAGS_PAGE_SIZE_DEFAULT,
+	};
+	uint32_t prefer;
+	unsigned i, start = 0;
+	int ret = -EINVAL;
+	uint64_t dma_try;
+	uint32_t h_dev;
+
+	if (!device || !h_dma || !h_memory || !length)
+		return -EINVAL;
+	h_dev = h_device ? h_device : device->h_device;
+	if (!h_dev)
+		return -ENODEV;
+
+	prefer = nvidia_rm_os46_pick_page_size(max_gpu_page_size, length);
+	for (i = 0; i < sizeof(ladder) / sizeof(ladder[0]); i++) {
+		if (ladder[i] == prefer) {
+			start = i;
+			break;
+		}
+	}
+
+	for (i = start; i < sizeof(ladder) / sizeof(ladder[0]); i++) {
+		uint32_t fl = NVOS46_MAKE_FLAGS(NVOS46_FLAGS_ACCESS_READ_WRITE,
+						ladder[i], 0);
+		dma_try = dma_offset_inout ? *dma_offset_inout : 0;
+		ret = nvidia_rm_map_memory_dma_raw(device->fd_ctl, device->h_client,
+						   h_dev, h_dma, h_memory,
+						   offset, length, fl, &dma_try);
+		if (ret == 0) {
+			if (dma_offset_inout)
+				*dma_offset_inout = dma_try;
+			if (flags_used_out)
+				*flags_used_out = fl;
+			return 0;
+		}
+	}
+	return ret;
 }
 
 int
