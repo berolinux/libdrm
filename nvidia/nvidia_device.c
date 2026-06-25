@@ -1918,6 +1918,25 @@ nvidia_rm_gpu_get_engines(nvidia_device_handle device,
 	return 0;
 }
 
+const char *
+nvidia_gpu_virtualization_mode_name(uint32_t virtualization_mode)
+{
+	switch (virtualization_mode) {
+	case NV0080_CTRL_GPU_VIRTUALIZATION_MODE_NONE:
+		return "NONE";
+	case NV0080_CTRL_GPU_VIRTUALIZATION_MODE_NMOS:
+		return "NMOS";
+	case NV0080_CTRL_GPU_VIRTUALIZATION_MODE_VGX:
+		return "VGX";
+	case NV0080_CTRL_GPU_VIRTUALIZATION_MODE_HOST_VGPU:
+		return "HOST_VGPU";
+	case NV0080_CTRL_GPU_VIRTUALIZATION_MODE_HOST_VSGA:
+		return "HOST_VSGA";
+	default:
+		return "UNKNOWN";
+	}
+}
+
 int
 nvidia_rm_gpu_get_engine_classlist(nvidia_device_handle device,
 				   uint32_t engine_type,

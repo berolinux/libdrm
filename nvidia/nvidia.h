@@ -1077,6 +1077,12 @@ nvidia_smoke_g3_wait_complete(volatile void *userd, uint32_t target_put,
 int nvidia_rm_gpu_get_engines(nvidia_device_handle device,
 			      uint32_t *engine_list, uint32_t *count_inout);
 
+/**
+ * tick109: human-readable NV0080 virtualization mode (probe field only).
+ * Returns static string; never NULL.
+ */
+const char *nvidia_gpu_virtualization_mode_name(uint32_t virtualization_mode);
+
 /** NV2080_CTRL_CMD_GPU_GET_ENGINE_CLASSLIST — classes for one engine type. */
 int nvidia_rm_gpu_get_engine_classlist(nvidia_device_handle device,
 				       uint32_t engine_type,
