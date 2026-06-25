@@ -145,15 +145,24 @@ nvidia_bo_alloc(nvidia_device_handle device,
 		/*
 		 * System memory: RmAlloc(NV01_MEMORY_SYSTEM) with
 		 * NV_MEMORY_ALLOCATION_PARAMS (PCI / write-combine for CPU maps).
+		 * tick112: prefer non-contig WC/uncached with page size from
+		 * device max_page_size (nvidia_rm_os32_attr_sysmem_mappable).
 		 */
 		bo->rm_handle = nvidia_device_new_handle(device);
 		flags = NVOS32_ALLOC_FLAGS_ALIGNMENT_FORCE |
 			NVOS32_ALLOC_FLAGS_MAP_NOT_REQUIRED |
 			NVOS32_ALLOC_FLAGS_NO_SCANOUT;
 		{
-			NvU32 attr = (req->flags & NVIDIA_BO_FLAGS_CPU_ACCESS) ?
-				NV_OS32_ATTR_PCI_4K_WRITECOMBINE :
-				NV_OS32_ATTR_PCI_4K_UNCACHED;
+			bool wc = (req->flags & NVIDIA_BO_FLAGS_CPU_ACCESS) != 0;
+			uint64_t max_ps = 0x1000ull;
+			int gi = device->gpu_index;
+			if (gi >= 0 && gi < NVIDIA_MAX_GPUS &&
+			    device->gpu_info_valid[gi] &&
+			    device->gpu_info_cache[gi].max_page_size)
+				max_ps = device->gpu_info_cache[gi].max_page_size;
+			uint32_t pgsz = nvidia_rm_os32_pick_attr_page_size(max_ps,
+									  size);
+			NvU32 attr = nvidia_rm_os32_attr_sysmem_mappable(pgsz, wc);
 			ret = nvidia_rm_memory_alloc_raw(device->fd_ctl,
 							 device->h_client,
 							 h_parent, &bo->rm_handle,
@@ -163,6 +172,17 @@ nvidia_bo_alloc(nvidia_device_handle device,
 							 attr, 0, size, align,
 							 &bo->gpu_offset,
 							 &bo->limit);
+			/* Fallback: strict 4K WC/uncached contig defaults */
+			if (ret != 0) {
+				attr = wc ? NV_OS32_ATTR_PCI_4K_WRITECOMBINE
+					  : NV_OS32_ATTR_PCI_4K_UNCACHED;
+				ret = nvidia_rm_memory_alloc_raw(
+					device->fd_ctl, device->h_client,
+					h_parent, &bo->rm_handle,
+					NV01_MEMORY_SYSTEM, device->h_client,
+					bo->rm_type, flags, attr, 0, size,
+					align, &bo->gpu_offset, &bo->limit);
+			}
 		}
 		if (ret != 0) {
 			ret = nvidia_rm_vidheap_alloc_raw(device->fd_ctl,
