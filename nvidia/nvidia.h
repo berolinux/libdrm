@@ -80,6 +80,8 @@ struct nvidia_gpu_info {
 	uint32_t gpu_id;              /* RM gpuId */
 	uint32_t device_instance;     /* NV0080 device instance */
 	uint32_t subdevice_instance;
+	/* tick106: MIG/SLI topology hints (1 = single subdevice default) */
+	uint32_t subdevice_count;
 	uint32_t pci_domain;
 	uint32_t pci_bus;
 	uint32_t pci_device;

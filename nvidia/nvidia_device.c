@@ -252,6 +252,8 @@ nvidia_device_refresh_gpu_info(struct nvidia_device *dev, int gpu_index)
 	info->fb_bar_address = card->fb_address;
 	info->fb_bar_size = card->fb_size;
 	info->device_instance = (uint32_t)gpu_index;
+	info->subdevice_instance = 0;
+	info->subdevice_count = 1; /* tick106: default single subdevice until RM probe */
 	info->valid = true;
 
 	/* Need subdevice for the rich queries */
@@ -261,6 +263,21 @@ nvidia_device_refresh_gpu_info(struct nvidia_device *dev, int gpu_index)
 			/* Still return basic PCI info */
 			dev->gpu_info_valid[gpu_index] = true;
 			return 0;
+		}
+	}
+
+	/* tick106: NV0080_CTRL_CMD_GPU_GET_NUM_SUBDEVICES (device object; MIG/SLI count) */
+	if (dev->rm_device_allocated && dev->h_device) {
+		NV0080_CTRL_GPU_GET_NUM_SUBDEVICES_PARAMS nsd;
+
+		memset(&nsd, 0, sizeof(nsd));
+		ret = nvidia_rm_control_raw(dev->fd_ctl, dev->h_client, dev->h_device,
+					    NV0080_CTRL_CMD_GPU_GET_NUM_SUBDEVICES,
+					    &nsd, sizeof(nsd));
+		if (ret == 0 && nsd.numSubDevices > 0) {
+			info->subdevice_count = nsd.numSubDevices;
+			if (info->subdevice_count > 8)
+				info->subdevice_count = 8; /* channel hUserdMemory[0..7] */
 		}
 	}
 

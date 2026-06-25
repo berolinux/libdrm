@@ -132,6 +132,11 @@ typedef struct {
 #define NV0080_CTRL_CMD_GPU_GET_CLASSLIST           0x800201
 #define NV0080_CTRL_CMD_GPU_GET_NUM_SUBDEVICES      0x800280
 #define NV0080_CTRL_CMD_GPU_GET_VIRTUALIZATION_MODE 0x800289
+
+/* ctrl0080gpu.h — target h_device (NV01_DEVICE_0), not subdevice */
+typedef struct {
+	NvU32 numSubDevices;
+} NV0080_CTRL_GPU_GET_NUM_SUBDEVICES_PARAMS;
 /* NV01_DEVICE_0 FIFO (ctrl0080fifo.h); target = h_device (0080), not subdevice */
 #define NV0080_CTRL_CMD_FIFO_GET_CAPS                0x801701
 #define NV0080_CTRL_CMD_FIFO_GET_ENGINE_CONTEXT_PROPERTIES 0x801707
