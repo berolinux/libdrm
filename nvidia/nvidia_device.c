@@ -346,14 +346,17 @@ nvidia_device_refresh_gpu_info(struct nvidia_device *dev, int gpu_index)
 		}
 	}
 
-	/* Graphics / SM info (tick102: also thread-stack scale / warps for QMD) */
+	/* Graphics / SM info (tick102/104: QMD limits + SM topology) */
 	memset(&gr, 0, sizeof(gr));
-	gr.grInfoListSize = 5;
+	gr.grInfoListSize = 8;
 	gr.grInfoList[0].index = NV2080_CTRL_GR_INFO_INDEX_SM_VERSION;
 	gr.grInfoList[1].index = NV2080_CTRL_GR_INFO_INDEX_SHADER_PIPE_COUNT;
 	gr.grInfoList[2].index = NV2080_CTRL_GR_INFO_INDEX_SHADER_PIPE_SUB_COUNT;
 	gr.grInfoList[3].index = NV2080_CTRL_GR_INFO_INDEX_MAX_WARPS_PER_SM;
 	gr.grInfoList[4].index = NV2080_CTRL_GR_INFO_INDEX_THREAD_STACK_SCALING_FACTOR;
+	gr.grInfoList[5].index = NV2080_CTRL_GR_INFO_INDEX_MAX_THREADS_PER_WARP;
+	gr.grInfoList[6].index = NV2080_CTRL_GR_INFO_INDEX_MAX_SP_PER_SM;
+	gr.grInfoList[7].index = NV2080_CTRL_GR_INFO_INDEX_GPU_CORE_COUNT;
 	ret = nvidia_rm_control_raw(dev->fd_ctl, dev->h_client, dev->h_subdevice,
 				    NV2080_CTRL_CMD_GR_GET_INFO_V2,
 				    &gr, sizeof(gr));
@@ -374,6 +377,15 @@ nvidia_device_refresh_gpu_info(struct nvidia_device *dev, int gpu_index)
 				break;
 			case NV2080_CTRL_GR_INFO_INDEX_THREAD_STACK_SCALING_FACTOR:
 				info->thread_stack_scaling = gr.grInfoList[i].data;
+				break;
+			case NV2080_CTRL_GR_INFO_INDEX_MAX_THREADS_PER_WARP:
+				info->max_threads_per_warp = gr.grInfoList[i].data;
+				break;
+			case NV2080_CTRL_GR_INFO_INDEX_MAX_SP_PER_SM:
+				info->max_sp_per_sm = gr.grInfoList[i].data;
+				break;
+			case NV2080_CTRL_GR_INFO_INDEX_GPU_CORE_COUNT:
+				info->gpu_core_count = gr.grInfoList[i].data;
 				break;
 			default:
 				break;

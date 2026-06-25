@@ -105,9 +105,12 @@ struct nvidia_gpu_info {
 	uint32_t sm_version;
 	uint32_t gpc_count;
 	uint32_t tpc_count;
-	/* tick102: GR_GET_INFO_V2 for QMD / CTA limits */
+	/* tick102/104: GR_GET_INFO_V2 for QMD / CTA limits */
 	uint32_t max_warps_per_sm;       /* NV2080 MAX_WARPS_PER_SM */
 	uint32_t thread_stack_scaling;   /* THREAD_STACK_SCALING_FACTOR */
+	uint32_t max_threads_per_warp;   /* usually 32; validate on silicon */
+	uint32_t max_sp_per_sm;          /* shader processors per SM */
+	uint32_t gpu_core_count;         /* NV2080 GPU_CORE_COUNT (SM total) */
 	/* tick96: refined probe (FB regions / page size / PCI ids from RM) */
 	uint32_t fb_region_count;     /* NV2080 FB_GET_FB_REGION_INFO numFBRegions */
 	uint64_t fb_region0_base;     /* first region base (phys) */
