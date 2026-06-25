@@ -1937,6 +1937,16 @@ nvidia_gpu_virtualization_mode_name(uint32_t virtualization_mode)
 	}
 }
 
+uint32_t
+nvidia_rm_os32_attr_sysmem_mappable(uint32_t page_size_sel, bool write_combine)
+{
+	uint32_t pgsz = page_size_sel ? page_size_sel : NVOS32_ATTR_PAGE_SIZE_4KB;
+
+	if (write_combine)
+		return NV_OS32_ATTR_PCI_WC_NONCONTIG_PGSZ(pgsz);
+	return NV_OS32_ATTR_PCI_UNCACHED_NONCONTIG_PGSZ(pgsz);
+}
+
 int
 nvidia_rm_gpu_get_engine_classlist(nvidia_device_handle device,
 				   uint32_t engine_type,

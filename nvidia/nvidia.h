@@ -1083,6 +1083,14 @@ int nvidia_rm_gpu_get_engines(nvidia_device_handle device,
  */
 const char *nvidia_gpu_virtualization_mode_name(uint32_t virtualization_mode);
 
+/**
+ * tick111: compose NVOS32 attr for host-mappable sema/notifier (prefer PCI WC).
+ * page_size_sel: unshifted NVOS32_ATTR_PAGE_SIZE_* (DEFAULT/4KB/BIG/HUGE).
+ * write_combine: true => WC (typical sema poll), false => uncached.
+ */
+uint32_t nvidia_rm_os32_attr_sysmem_mappable(uint32_t page_size_sel,
+					     bool write_combine);
+
 /** NV2080_CTRL_CMD_GPU_GET_ENGINE_CLASSLIST — classes for one engine type. */
 int nvidia_rm_gpu_get_engine_classlist(nvidia_device_handle device,
 				       uint32_t engine_type,
